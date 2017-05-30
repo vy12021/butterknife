@@ -1,5 +1,59 @@
 package butterknife.compiler;
 
+import com.google.auto.common.SuperficialValidation;
+import com.google.auto.service.AutoService;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.TypeName;
+import com.sun.source.tree.ClassTree;
+import com.sun.source.util.Trees;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.TreeScanner;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Filer;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.MirroredTypeException;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
+import javax.tools.Diagnostic.Kind;
+
+import butterknife.Bind;
 import butterknife.BindArray;
 import butterknife.BindBitmap;
 import butterknife.BindBool;
@@ -25,56 +79,6 @@ import butterknife.OnTouch;
 import butterknife.Optional;
 import butterknife.internal.ListenerClass;
 import butterknife.internal.ListenerMethod;
-import com.google.auto.common.SuperficialValidation;
-import com.google.auto.service.AutoService;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.JavaFile;
-import com.squareup.javapoet.TypeName;
-import com.sun.source.tree.ClassTree;
-import com.sun.source.util.Trees;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.TreeScanner;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.Filer;
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.annotation.processing.Processor;
-import javax.annotation.processing.RoundEnvironment;
-import javax.lang.model.SourceVersion;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.Name;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.MirroredTypeException;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.TypeVariable;
-import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
-import javax.tools.Diagnostic.Kind;
 
 import static javax.lang.model.element.ElementKind.CLASS;
 import static javax.lang.model.element.ElementKind.INTERFACE;
@@ -173,6 +177,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     annotations.add(BindString.class);
     annotations.add(BindView.class);
     annotations.add(BindViews.class);
+    annotations.add(Bind.class);
     annotations.addAll(LISTENERS);
 
     return annotations;
@@ -303,6 +308,17 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       }
     }
 
+    // Process each @Bind element.
+    for (Element element : env.getElementsAnnotatedWith(Bind.class)) {
+      // we don't SuperficialValidation.validateElement(element)
+      // so that an unresolved View type can be generated by later processing rounds
+      try {
+        parseBind(element, builderMap, erasedTargetNames);
+      } catch (Exception e) {
+        logParsingError(element, Bind.class, e);
+      }
+    }
+
     // Process each @BindViews element.
     for (Element element : env.getElementsAnnotatedWith(BindViews.class)) {
       // we don't SuperficialValidation.validateElement(element)
@@ -405,6 +421,66 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     return false;
+  }
+
+  @Deprecated
+  private void parseBind(Element element, Map<TypeElement, BindingSet.Builder> builderMap,
+                             Set<TypeElement> erasedTargetNames) {
+    TypeElement enclosingElement = (TypeElement) element.getEnclosingElement();
+
+    // Start by verifying common generated code restrictions.
+    boolean hasError = isInaccessibleViaGeneratedCode(Bind.class, "fields", element)
+            || isBindingInWrongPackage(Bind.class, element);
+
+    // Verify that the target type extends from View.
+    TypeMirror elementType = element.asType();
+    if (elementType.getKind() == TypeKind.TYPEVAR) {
+      TypeVariable typeVariable = (TypeVariable) elementType;
+      elementType = typeVariable.getUpperBound();
+    }
+    Name qualifiedName = enclosingElement.getQualifiedName();
+    Name simpleName = element.getSimpleName();
+    if (!isSubtypeOfType(elementType, VIEW_TYPE) && !isInterface(elementType)) {
+      if (elementType.getKind() == TypeKind.ERROR) {
+        note(element, "@%s field with unresolved type (%s) "
+                        + "must elsewhere be generated as a View or interface. (%s.%s)",
+                Bind.class.getSimpleName(), elementType, qualifiedName, simpleName);
+      } else {
+        error(element, "@%s fields must extend from View or be an interface. (%s.%s)",
+                Bind.class.getSimpleName(), qualifiedName, simpleName);
+        hasError = true;
+      }
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    // Assemble information on the field.
+    int id = element.getAnnotation(Bind.class).value();
+
+    BindingSet.Builder builder = builderMap.get(enclosingElement);
+    QualifiedId qualifiedId = elementToQualifiedId(element, id);
+    if (builder != null) {
+      String existingBindingName = builder.findExistingBindingName(getId(qualifiedId));
+      if (existingBindingName != null) {
+        error(element, "Attempt to use @%s for an already bound ID %d on '%s'. (%s.%s)",
+                Bind.class.getSimpleName(), id, existingBindingName,
+                enclosingElement.getQualifiedName(), element.getSimpleName());
+        return;
+      }
+    } else {
+      builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
+    }
+
+    String name = simpleName.toString();
+    TypeName type = TypeName.get(elementType);
+    boolean required = isFieldRequired(element);
+
+    builder.addField(getId(qualifiedId), new FieldViewBinding(name, type, required));
+
+    // Add the type-erased version to the valid binding targets set.
+    erasedTargetNames.add(enclosingElement);
   }
 
   private void parseBindView(Element element, Map<TypeElement, BindingSet.Builder> builderMap,

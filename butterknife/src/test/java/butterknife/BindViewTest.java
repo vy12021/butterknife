@@ -18,8 +18,10 @@ public class BindViewTest {
         + "package test;\n"
         + "import android.view.View;\n"
         + "import butterknife.BindView;\n"
+        + "import butterknife.Bind;\n"
         + "public class Test {\n"
         + "    @BindView(1) View thing;\n"
+        + "    @Bind(2) View thingOld;\n"
         + "}"
     );
 
@@ -38,6 +40,7 @@ public class BindViewTest {
         + "  public Test_ViewBinding(Test target, View source) {\n"
         + "    this.target = target;\n"
         + "    target.thing = Utils.findRequiredView(source, 1, \"field 'thing'\");\n"
+        + "    target.thingOld = Utils.findRequiredView(source, 2, \"field 'thingOld'\");\n"
         + "  }\n"
         + "  @Override\n"
         + "  @CallSuper\n"
@@ -46,6 +49,7 @@ public class BindViewTest {
         + "    if (target == null) throw new IllegalStateException(\"Bindings already cleared.\");\n"
         + "    this.target = null;\n"
         + "    target.thing = null;\n"
+        + "    target.thingOld = null;\n"
         + "  }\n"
         + "}"
     );

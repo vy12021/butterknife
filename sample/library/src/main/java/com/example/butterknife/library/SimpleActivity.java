@@ -31,7 +31,7 @@ public class SimpleActivity extends Activity {
   };
 
   @BindView(R2.id.title) TextView title;
-  @BindView(R2.id.subtitle) TextView subtitle;
+  @Bind(R2.id.subtitle) TextView subtitle;
   @BindView(R2.id.hello) Button hello;
   @BindView(R2.id.list_of_things) ListView listOfThings;
   @BindView(R2.id.footer) TextView footer;
