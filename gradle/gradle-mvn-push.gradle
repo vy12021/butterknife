@@ -21,17 +21,17 @@ version = VERSION_NAME
 group = GROUP
 
 def isReleaseBuild() {
-  return VERSION_NAME.contains("SNAPSHOT") == false
+  return !VERSION_NAME.contains("snapshot")
 }
 
 def getReleaseRepositoryUrl() {
   return hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
-      : "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+      : "http://git.dou-pai.com:8081/nexus/content/repositories/bhb-release/"
 }
 
 def getSnapshotRepositoryUrl() {
   return hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
-      : "https://oss.sonatype.org/content/repositories/snapshots/"
+      : "http://git.dou-pai.com:8081/nexus/content/repositories/bhb-snapshot/"
 }
 
 def getRepositoryUsername() {
@@ -41,6 +41,24 @@ def getRepositoryUsername() {
 def getRepositoryPassword() {
   return hasProperty('SONATYPE_NEXUS_PASSWORD') ? SONATYPE_NEXUS_PASSWORD : ""
 }
+
+/*def getReleaseRepositoryUrl() {
+  return hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
+          : "http://mvn.teslaliu.com:8081/nexus/content/repositories/tesla-liu/"
+}
+
+def getSnapshotRepositoryUrl() {
+  return hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
+          : "http://mvn.teslaliu.com:8081/nexus/content/repositories/tesla-liu-snapshots/"
+}
+
+def getRepositoryUsername() {
+  return hasProperty('SONATYPE_NEXUS_USERNAME') ? SONATYPE_NEXUS_USERNAME : ""
+}
+
+def getRepositoryPassword() {
+  return hasProperty('SONATYPE_NEXUS_PASSWORD') ? SONATYPE_NEXUS_PASSWORD : ""
+}*/
 
 afterEvaluate { project ->
   uploadArchives {

@@ -131,6 +131,18 @@ public final class ButterKnife {
    * @param target Target activity for view binding.
    */
   @NonNull @UiThread
+  public static Unbinder bindController(@NonNull ViewController target, View view) {
+    View sourceView = null != view ? view : target.getView();
+    return createBinding(target, sourceView);
+  }
+
+  /**
+   * BindView annotated fields and methods in the specified {@link Activity}. The current content
+   * view is used as the view root.
+   *
+   * @param target Target activity for view binding.
+   */
+  @NonNull @UiThread
   public static Unbinder bind(@NonNull Activity target) {
     View sourceView = target.getWindow().getDecorView();
     return createBinding(target, sourceView);

@@ -463,7 +463,7 @@ final class BindingSet {
               if (null != conditions && conditions.length > 0) {
                 for (String condition : conditions) {
                   if (checkJavaSymbol(condition)) {
-                    builder.beginControlFlow("if (!target.condition())");
+                    builder.beginControlFlow("if (!target.$L())", condition);
                     if (hasReturnType) {
                       builder.addStatement("return $L", method.defaultReturn());
                     } else {
@@ -471,8 +471,8 @@ final class BindingSet {
                     }
                     builder.endControlFlow();
                   } else {
-                  /*throw new RuntimeException("Condition\" "
-                          + condition + "\" must be a valid java symbol");*/
+                  throw new RuntimeException("Condition\" "
+                          + condition + "\" must be a valid java symbol");
                   }
                 }
               }
