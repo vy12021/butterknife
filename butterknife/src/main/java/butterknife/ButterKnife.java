@@ -14,6 +14,7 @@ import android.support.annotation.VisibleForTesting;
 import android.util.Log;
 import android.util.Property;
 import android.view.View;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
@@ -110,6 +111,17 @@ public final class ButterKnife {
   /** Control whether debug logging is enabled. */
   public static void setDebug(boolean debug) {
     ButterKnife.debug = debug;
+  }
+
+  /**
+   * BindView annotated fields and methods in the specified {@link Activity}. The current content
+   * view is used as the view root.
+   *
+   * @param target Target activity for view binding.
+   */
+  @NonNull @UiThread
+  public static Unbinder bindController(@NonNull ViewController target) {
+    return createBinding(target, target.getView());
   }
 
   /**

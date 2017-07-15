@@ -1,8 +1,5 @@
 package butterknife.compiler;
 
-import butterknife.OnTouch;
-import butterknife.internal.ListenerClass;
-import butterknife.internal.ListenerMethod;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
@@ -13,6 +10,7 @@ import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.WildcardTypeName;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,9 +20,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
+
+import butterknife.OnTouch;
+import butterknife.internal.ListenerClass;
+import butterknife.internal.ListenerMethod;
 
 import static butterknife.compiler.ButterKnifeProcessor.ACTIVITY_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.DIALOG_TYPE;
@@ -52,6 +56,7 @@ final class BindingSet {
   static final ClassName BITMAP_FACTORY = ClassName.get("android.graphics", "BitmapFactory");
   static final ClassName CONTEXT_COMPAT =
       ClassName.get("android.support.v4.content", "ContextCompat");
+  private static final ClassName VIEW_CONTROLLER = ClassName.get("butterknife", "ViewController");
 
   private final TypeName targetTypeName;
   private final ClassName bindingClassName;
@@ -444,12 +449,36 @@ final class BindingSet {
 
         boolean hasReturnType = !"void".equals(method.returnType());
         CodeBlock.Builder builder = CodeBlock.builder();
-        if (hasReturnType) {
-          builder.add("return ");
-        }
 
         if (methodBindings.containsKey(method)) {
           for (MethodViewBinding methodBinding : methodBindings.get(method)) {
+            String[] conditions = methodBinding.getConditions();
+            String key = methodBinding.getKey();
+            if ((null != conditions && conditions.length > 0) || (null != key && !"".equals(key))) {
+              builder.beginControlFlow("if (!$T.class.isInstance(target))",
+                      VIEW_CONTROLLER)
+                      .addStatement("throw new RuntimeException("
+                              + "\"Target must be implements from $T\")", VIEW_CONTROLLER)
+                      .endControlFlow();
+              if (null != conditions && conditions.length > 0) {
+                for (String condition : conditions) {
+                  if (checkJavaSymbol(condition)) {
+                    builder.beginControlFlow("if (!target.condition())");
+                    if (hasReturnType) {
+                      builder.addStatement("return $L", method.defaultReturn());
+                    } else {
+                      builder.addStatement("return");
+                    }
+                    builder.endControlFlow();
+                  } else {
+                  /*throw new RuntimeException("Condition\" "
+                          + condition + "\" must be a valid java symbol");*/
+                  }
+                }
+              }
+              builder.addStatement("target.postAction(p0, $S, $S, $S)",
+                      targetTypeName, methodBinding.getName(), key);
+            }
             builder.add("target.$L(", methodBinding.getName());
             List<Parameter> parameters = methodBinding.getParameters();
             String[] listenerParameters = method.parameters();
@@ -470,8 +499,9 @@ final class BindingSet {
             }
             builder.add(");\n");
           }
-        } else if (hasReturnType) {
-          builder.add("$L;\n", method.defaultReturn());
+        }
+        if (hasReturnType) {
+          builder.addStatement("return $L", method.defaultReturn());
         }
         callbackMethod.addCode(builder.build());
         callback.addMethod(callbackMethod.build());
@@ -758,4 +788,15 @@ final class BindingSet {
           parentBinding);
     }
   }
+
+  private static boolean checkJavaSymbol(String... symbols) {
+    Pattern pattern = Pattern.compile("^[A-Za-z_$]+[A-Za-z_$\\d]+$");
+    for (String symbol : symbols) {
+      if (!pattern.matcher(symbol).find()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
 }

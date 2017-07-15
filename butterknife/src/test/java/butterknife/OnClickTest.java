@@ -12,9 +12,16 @@ public class OnClickTest {
   @Test public void onClickBinding() {
     JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
         + "package test;\n"
+        + "import android.view.View;\n"
         + "import butterknife.OnClick;\n"
-        + "public class Test {\n"
-        + "  @OnClick(1) void doStuff() {}\n"
+        + "import butterknife.ViewController;\n"
+        + "public class Test implements ViewController {\n"
+        + "  @OnClick(value = {1}, required = {\"condition\"}, key = \"Key\") void doStuff() {}\n"
+
+            + "public boolean condition() {return true;}\n"
+            + "@Override public void postAction(View view, String clazz, String method, String key) {}\n"
+            + "@Override public View getView() {return null;}\n"
+
         + "}"
     );
 
@@ -24,6 +31,7 @@ public class OnClickTest {
         + "import android.support.annotation.UiThread;\n"
         + "import android.view.View;\n"
         + "import butterknife.Unbinder;\n"
+        + "import butterknife.ViewController;\n"
         + "import butterknife.internal.DebouncingOnClickListener;\n"
         + "import butterknife.internal.Utils;\n"
         + "import java.lang.IllegalStateException;\n"
@@ -40,6 +48,13 @@ public class OnClickTest {
         + "    view.setOnClickListener(new DebouncingOnClickListener() {\n"
         + "      @Override\n"
         + "      public void doClick(View p0) {\n"
+        + "        if (!ViewController.class.isInstance(target)) {\n"
+        + "          throw new RuntimeException(\"Target must be implements from ViewController\");\n"
+        + "        }\n"
+        + "        if (!target.condition()) {\n"
+        + "          return;\n"
+        + "        }\n"
+        + "        target.postAction(p0, \"test.Test\", \"doStuff\", \"Key\");\n"
         + "        target.doStuff();\n"
         + "      }\n"
         + "    });\n"

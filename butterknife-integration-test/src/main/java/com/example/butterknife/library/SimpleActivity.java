@@ -9,6 +9,8 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import butterknife.Bind;
 import butterknife.BindString;
 import butterknife.BindView;
 import butterknife.BindViews;
@@ -16,13 +18,15 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import butterknife.OnItemClick;
 import butterknife.OnLongClick;
+import butterknife.ViewController;
+
 import com.example.butterknife.R;
 
 import java.util.List;
 
 import static android.widget.Toast.LENGTH_SHORT;
 
-public class SimpleActivity extends Activity {
+public class SimpleActivity extends Activity implements ViewController, Condition {
   private static final ButterKnife.Action<View> ALPHA_FADE = new ButterKnife.Action<View>() {
     @Override public void apply(@NonNull View view, int index) {
       AlphaAnimation alphaAnimation = new AlphaAnimation(0, 1);
@@ -33,7 +37,7 @@ public class SimpleActivity extends Activity {
     }
   };
 
-  @BindView(R.id.title) TextView title;
+  @Bind(R.id.title) TextView title;
   @BindView(R.id.subtitle) TextView subtitle;
   @BindView(R.id.hello) Button hello;
   @BindView(R.id.list_of_things) ListView listOfThings;
@@ -47,8 +51,8 @@ public class SimpleActivity extends Activity {
 
   private SimpleAdapter adapter;
 
-  @OnClick(R.id.hello) void sayHello() {
-    Toast.makeText(this, "Hello, views!", LENGTH_SHORT).show();
+  @OnClick(value = {R.id.hello}, required = {"condition"}, key = "hello") void sayHello() {
+    // Toast.makeText(this, "Hello, views!", LENGTH_SHORT).show();
     ButterKnife.apply(headerViews, ALPHA_FADE);
   }
 
@@ -64,7 +68,7 @@ public class SimpleActivity extends Activity {
   @Override protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.simple_activity);
-    ButterKnife.bind(this);
+    ButterKnife.bindController(this);
 
     // Contrived code to use the bound fields.
     title.setText(butterKnife);
@@ -75,4 +79,22 @@ public class SimpleActivity extends Activity {
     adapter = new SimpleAdapter(this);
     listOfThings.setAdapter(adapter);
   }
+
+  @Override
+  public void postAction(View view, String clazz, String method, String key) {
+    Toast.makeText(this, clazz + "." + method + ": " + key, LENGTH_SHORT).show();
+  }
+
+  @NonNull
+  @Override
+  public View getView() {
+    return getWindow().getDecorView();
+  }
+
+  @Override
+  public boolean condition() {
+    Toast.makeText(this, "Click to test condition", LENGTH_SHORT).show();
+    return true;
+  }
+
 }

@@ -1012,6 +1012,8 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
 
     // Assemble information on the method.
     Annotation annotation = element.getAnnotation(annotationClass);
+
+    // TODO getId
     Method annotationValue = annotationClass.getDeclaredMethod("value");
     if (annotationValue.getReturnType() != int[].class) {
       throw new IllegalStateException(
@@ -1032,6 +1034,20 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
           annotationClass.getSimpleName(), duplicateId, enclosingElement.getQualifiedName(),
           element.getSimpleName());
       hasError = true;
+    }
+
+    // TODO getRequired
+    String[] conditions = null;
+    Method annotationRequired = annotationClass.getDeclaredMethod("required");
+    if (annotationRequired.getReturnType() == String[].class) {
+      conditions = (String[]) annotationRequired.invoke(annotation);
+    }
+
+    // TODO getKey
+    String key = null;
+    Method annotationKey = annotationClass.getDeclaredMethod("key");
+    if (annotationKey.getReturnType() == String.class) {
+      key = (String) annotationKey.invoke(annotation);
     }
 
     ListenerClass listener = annotationClass.getAnnotation(ListenerClass.class);
@@ -1174,7 +1190,8 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       }
     }
 
-    MethodViewBinding binding = new MethodViewBinding(name, Arrays.asList(parameters), required);
+    MethodViewBinding binding = new MethodViewBinding(name,
+            Arrays.asList(parameters), conditions, key, required);
     BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
     for (int id : ids) {
       QualifiedId qualifiedId = elementToQualifiedId(element, id);

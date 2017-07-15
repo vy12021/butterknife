@@ -31,7 +31,7 @@ public class SimpleActivity extends Activity {
   };
 
   @BindView(R2.id.title) TextView title;
-  @Bind(R2.id.subtitle) TextView subtitle;
+  // @Bind(R2.id.subtitle) TextView subtitle;
   @BindView(R2.id.hello) Button hello;
   @BindView(R2.id.list_of_things) ListView listOfThings;
   @BindView(R2.id.footer) TextView footer;
@@ -61,7 +61,7 @@ public class SimpleActivity extends Activity {
 
     // Contrived code to use the bound fields.
     title.setText("Butter Knife");
-    subtitle.setText("Field and method binding for Android views.");
+    // subtitle.setText("Field and method binding for Android views.");
     footer.setText("by Jake Wharton");
     hello.setText("Say Hello");
 
