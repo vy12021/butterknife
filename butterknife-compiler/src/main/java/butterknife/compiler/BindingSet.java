@@ -447,6 +447,7 @@ final class BindingSet {
           callbackMethod.addParameter(bestGuess(parameterTypes[i]), "p" + i);
         }
 
+        boolean returned = false;
         boolean hasReturnType = !"void".equals(method.returnType());
         CodeBlock.Builder builder = CodeBlock.builder();
 
@@ -471,13 +472,17 @@ final class BindingSet {
                     }
                     builder.endControlFlow();
                   } else {
-                  throw new RuntimeException("Condition\" "
+                    throw new RuntimeException("Condition\" "
                           + condition + "\" must be a valid java symbol");
                   }
                 }
               }
               builder.addStatement("target.postAction(p0, $S, $S, $S)",
                       targetTypeName, methodBinding.getName(), key);
+            }
+            if (hasReturnType && !returned) {
+              builder.add("return ");
+              returned = true;
             }
             builder.add("target.$L(", methodBinding.getName());
             List<Parameter> parameters = methodBinding.getParameters();
@@ -499,8 +504,7 @@ final class BindingSet {
             }
             builder.add(");\n");
           }
-        }
-        if (hasReturnType) {
+        } else {
           builder.addStatement("return $L", method.defaultReturn());
         }
         callbackMethod.addCode(builder.build());
