@@ -1,13 +1,5 @@
-apply plugin: 'java'
+apply plugin: 'java-library'
 apply plugin: 'kotlin'
-
-def logger = new com.android.build.gradle.internal.LoggerWrapper(project.logger)
-def sdkHandler = new com.android.build.gradle.internal.SdkHandler(project, logger)
-for (File file : sdkHandler.sdkLoader.repositories) {
-  repositories.maven {
-    url = file.toURI()
-  }
-}
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
@@ -15,15 +7,15 @@ targetCompatibility = JavaVersion.VERSION_1_8
 dependencies {
   compileOnly gradleApi()
 
-  compile deps.android.gradlePlugin
-  compile deps.javaparser
-  compile deps.javapoet
-  compile deps.kotlin.stdLibJre8
+  implementation deps.android.gradlePlugin
+  implementation deps.javaparser
+  implementation deps.javapoet
+  implementation deps.kotlin.stdLibJre8
 
-  testCompile deps.junit
-  testCompile deps.truth
-  testCompile deps.support.annotations
-  testCompile deps.compiletesting
+  testImplementation deps.junit
+  testImplementation deps.truth
+  testImplementation deps.support.annotations
+  testImplementation deps.compiletesting
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')

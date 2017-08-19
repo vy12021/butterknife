@@ -24,6 +24,8 @@ android {
     warningsAsErrors true
     showAll true
     explainIssues true
+    // We run a full lint analysis as build part in CI, so skip vital checks for assemble tasks.
+    checkReleaseBuilds false
   }
 
   buildTypes {
@@ -32,14 +34,19 @@ android {
       proguardFile getDefaultProguardFile('proguard-android.txt')
     }
   }
+
+  testOptions {
+    unitTests {
+      includeAndroidResources = true
+    }
+  }
 }
 
 dependencies {
-  compile project(':butterknife')
+  implementation project(':butterknife')
   annotationProcessor project(':butterknife-compiler')
 
-  testCompile deps.junit
-  testCompile deps.truth
-  testCompile deps.robolectric
-  testCompile deps.openglApi
+  testImplementation deps.junit
+  testImplementation deps.truth
+  testImplementation deps.robolectric
 }

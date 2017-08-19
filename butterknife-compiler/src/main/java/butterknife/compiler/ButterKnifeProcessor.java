@@ -1,7 +1,36 @@
 package butterknife.compiler;
 
+import butterknife.BindAnim;
+import butterknife.BindArray;
+import butterknife.BindBitmap;
+import butterknife.BindBool;
+import butterknife.BindColor;
+import butterknife.BindDimen;
+import butterknife.BindDrawable;
+import butterknife.BindFloat;
+import butterknife.BindFont;
+import butterknife.BindInt;
+import butterknife.BindString;
+import butterknife.BindView;
+import butterknife.BindViews;
+import butterknife.OnCheckedChanged;
+import butterknife.OnClick;
+import butterknife.OnEditorAction;
+import butterknife.OnFocusChange;
+import butterknife.OnItemClick;
+import butterknife.OnItemLongClick;
+import butterknife.OnItemSelected;
+import butterknife.OnLongClick;
+import butterknife.OnPageChange;
+import butterknife.OnTextChanged;
+import butterknife.OnTouch;
+import butterknife.Optional;
+import butterknife.compiler.FieldTypefaceBinding.TypefaceStyles;
+import butterknife.internal.ListenerClass;
+import butterknife.internal.ListenerMethod;
 import com.google.auto.common.SuperficialValidation;
 import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableSet;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.TypeName;
@@ -21,7 +50,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -90,14 +118,17 @@ import static javax.lang.model.element.Modifier.STATIC;
 public final class ButterKnifeProcessor extends AbstractProcessor {
   // TODO remove when http://b.android.com/187527 is released.
   private static final String OPTION_SDK_INT = "butterknife.minSdk";
+  private static final String OPTION_DEBUGGABLE = "butterknife.debuggable";
   static final Id NO_ID = new Id(-1);
   static final String VIEW_TYPE = "android.view.View";
   static final String ACTIVITY_TYPE = "android.app.Activity";
   static final String DIALOG_TYPE = "android.app.Dialog";
   private static final String COLOR_STATE_LIST_TYPE = "android.content.res.ColorStateList";
   private static final String BITMAP_TYPE = "android.graphics.Bitmap";
+  private static final String ANIMATION_TYPE = "android.view.animation.Animation";
   private static final String DRAWABLE_TYPE = "android.graphics.drawable.Drawable";
   private static final String TYPED_ARRAY_TYPE = "android.content.res.TypedArray";
+  private static final String TYPEFACE_TYPE = "android.graphics.Typeface";
   private static final String NULLABLE_ANNOTATION_NAME = "Nullable";
   private static final String STRING_TYPE = "java.lang.String";
   private static final String LIST_TYPE = List.class.getCanonicalName();
@@ -123,7 +154,9 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   private Types typeUtils;
   private Filer filer;
   private Trees trees;
+
   private int sdk = 1;
+  private boolean debuggable = true;
 
   private final Map<QualifiedId, Id> symbols = new LinkedHashMap<>();
 
@@ -142,6 +175,8 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       }
     }
 
+    debuggable = !"false".equals(env.getOptions().get(OPTION_DEBUGGABLE));
+
     elementUtils = env.getElementUtils();
     typeUtils = env.getTypeUtils();
     filer = env.getFiler();
@@ -152,7 +187,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   }
 
   @Override public Set<String> getSupportedOptions() {
-    return Collections.singleton(OPTION_SDK_INT);
+    return ImmutableSet.of(OPTION_SDK_INT, OPTION_DEBUGGABLE);
   }
 
   @Override public Set<String> getSupportedAnnotationTypes() {
@@ -166,6 +201,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   private Set<Class<? extends Annotation>> getSupportedAnnotations() {
     Set<Class<? extends Annotation>> annotations = new LinkedHashSet<>();
 
+    annotations.add(BindAnim.class);
     annotations.add(BindArray.class);
     annotations.add(BindBitmap.class);
     annotations.add(BindBool.class);
@@ -173,6 +209,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     annotations.add(BindDimen.class);
     annotations.add(BindDrawable.class);
     annotations.add(BindFloat.class);
+    annotations.add(BindFont.class);
     annotations.add(BindInt.class);
     annotations.add(BindString.class);
     annotations.add(BindView.class);
@@ -190,7 +227,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       TypeElement typeElement = entry.getKey();
       BindingSet binding = entry.getValue();
 
-      JavaFile javaFile = binding.brewJava(sdk);
+      JavaFile javaFile = binding.brewJava(sdk, debuggable);
       try {
         javaFile.writeTo(filer);
       } catch (IOException e) {
@@ -206,6 +243,16 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     Set<TypeElement> erasedTargetNames = new LinkedHashSet<>();
 
     scanForRClasses(env);
+
+    // Process each @BindAnim element.
+    for (Element element : env.getElementsAnnotatedWith(BindAnim.class)) {
+      if (!SuperficialValidation.validateElement(element)) continue;
+      try {
+        parseResourceAnimation(element, builderMap, erasedTargetNames);
+      } catch (Exception e) {
+        logParsingError(element, BindAnim.class, e);
+      }
+    }
 
     // Process each @BindArray element.
     for (Element element : env.getElementsAnnotatedWith(BindArray.class)) {
@@ -274,6 +321,16 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
         parseResourceFloat(element, builderMap, erasedTargetNames);
       } catch (Exception e) {
         logParsingError(element, BindFloat.class, e);
+      }
+    }
+
+    // Process each @BindFont element.
+    for (Element element : env.getElementsAnnotatedWith(BindFont.class)) {
+      if (!SuperficialValidation.validateElement(element)) continue;
+      try {
+        parseResourceFont(element, builderMap, erasedTargetNames);
+      } catch (Exception e) {
+        logParsingError(element, BindFont.class, e);
       }
     }
 
@@ -637,6 +694,37 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     erasedTargetNames.add(enclosingElement);
   }
 
+  private void parseResourceAnimation(Element element,
+      Map<TypeElement, BindingSet.Builder> builderMap, Set<TypeElement> erasedTargetNames) {
+    boolean hasError = false;
+    TypeElement enclosingElement = (TypeElement) element.getEnclosingElement();
+
+    // Verify that the target type is Animation.
+    if (!ANIMATION_TYPE.equals(element.asType().toString())) {
+      error(element, "@%s field type must be 'Animation'. (%s.%s)",
+          BindAnim.class.getSimpleName(), enclosingElement.getQualifiedName(),
+          element.getSimpleName());
+      hasError = true;
+    }
+
+    // Verify common generated code restrictions.
+    hasError |= isInaccessibleViaGeneratedCode(BindAnim.class, "fields", element);
+    hasError |= isBindingInWrongPackage(BindAnim.class, element);
+
+    if (hasError) {
+      return;
+    }
+
+    // Assemble information on the field.
+    String name = element.getSimpleName().toString();
+    int id = element.getAnnotation(BindAnim.class).value();
+    QualifiedId qualifiedId = elementToQualifiedId(element, id);
+    BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
+    builder.addResource(new FieldAnimationBinding(getId(qualifiedId), name));
+
+    erasedTargetNames.add(enclosingElement);
+  }
+
   private void parseResourceBool(Element element,
       Map<TypeElement, BindingSet.Builder> builderMap, Set<TypeElement> erasedTargetNames) {
     boolean hasError = false;
@@ -835,6 +923,46 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
     builder.addResource(
         new FieldResourceBinding(getId(qualifiedId), name, FieldResourceBinding.Type.FLOAT));
+
+    erasedTargetNames.add(enclosingElement);
+  }
+
+  private void parseResourceFont(Element element,
+      Map<TypeElement, BindingSet.Builder> builderMap, Set<TypeElement> erasedTargetNames) {
+    boolean hasError = false;
+    TypeElement enclosingElement = (TypeElement) element.getEnclosingElement();
+
+    // Verify that the target type is a Typeface.
+    if (!TYPEFACE_TYPE.equals(element.asType().toString())) {
+      error(element, "@%s field type must be 'Typeface'. (%s.%s)",
+          BindFont.class.getSimpleName(), enclosingElement.getQualifiedName(),
+          element.getSimpleName());
+      hasError = true;
+    }
+
+    // Verify common generated code restrictions.
+    hasError |= isInaccessibleViaGeneratedCode(BindFont.class, "fields", element);
+    hasError |= isBindingInWrongPackage(BindFont.class, element);
+
+    // Assemble information on the field.
+    String name = element.getSimpleName().toString();
+    BindFont bindFont = element.getAnnotation(BindFont.class);
+
+    int styleValue = bindFont.style();
+    TypefaceStyles style = TypefaceStyles.fromValue(styleValue);
+    if (style == null) {
+      error(element, "@%s style must be NORMAL, BOLD, ITALIC, or BOLD_ITALIC. (%s.%s)",
+          BindFont.class.getSimpleName(), enclosingElement.getQualifiedName(), name);
+      hasError = true;
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
+    QualifiedId qualifiedId = elementToQualifiedId(element, bindFont.value());
+    builder.addResource(new FieldTypefaceBinding(getId(qualifiedId), name, style));
 
     erasedTargetNames.add(enclosingElement);
   }
