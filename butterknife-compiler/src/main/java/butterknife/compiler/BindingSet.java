@@ -467,11 +467,11 @@ final class BindingSet {
             String[] conditions = methodBinding.getConditions();
             String key = methodBinding.getKey();
             if ((null != conditions && conditions.length > 0) || (null != key && !"".equals(key))) {
-              builder.beginControlFlow("if (!$T.class.isInstance(target))",
+              /*builder.beginControlFlow("if (!$T.class.isInstance(target))",
                       VIEW_CONTROLLER)
                       .addStatement("throw new RuntimeException("
                               + "\"Target must be implements from $T\")", VIEW_CONTROLLER)
-                      .endControlFlow();
+                      .endControlFlow();*/
               if (null != conditions && conditions.length > 0) {
                 for (String condition : conditions) {
                   if (checkJavaSymbol(condition)) {
