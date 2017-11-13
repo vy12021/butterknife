@@ -467,11 +467,6 @@ final class BindingSet {
             String[] conditions = methodBinding.getConditions();
             String key = methodBinding.getKey();
             if ((null != conditions && conditions.length > 0) || (null != key && !"".equals(key))) {
-              /*builder.beginControlFlow("if (!$T.class.isInstance(target))",
-                      VIEW_CONTROLLER)
-                      .addStatement("throw new RuntimeException("
-                              + "\"Target must be implements from $T\")", VIEW_CONTROLLER)
-                      .endControlFlow();*/
               if (null != conditions && conditions.length > 0) {
                 for (String condition : conditions) {
                   if (checkJavaSymbol(condition)) {
@@ -488,8 +483,15 @@ final class BindingSet {
                   }
                 }
               }
-              builder.addStatement("target.postAction(p0, $S, $S, $S)",
-                      targetTypeName, methodBinding.getName(), key);
+              if (null != key && !"".equals(key)) {
+                builder.beginControlFlow("if (!$T.class.isInstance(target))",
+                        VIEW_CONTROLLER)
+                        .addStatement("throw new RuntimeException("
+                                + "\"Target must be implements from $T\")", VIEW_CONTROLLER)
+                        .endControlFlow();
+                builder.addStatement("target.postAction(p0, $S, $S, $S)",
+                        targetTypeName, methodBinding.getName(), key);
+              }
             }
             if (hasReturnType && !returned) {
               builder.add("return ");
