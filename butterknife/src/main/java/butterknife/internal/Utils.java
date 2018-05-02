@@ -78,6 +78,12 @@ public final class Utils {
   }
 
   public static <T> T findOptionalViewAsType(View source, @IdRes int id, String who,
+                                             String cls) {
+    View view = source.findViewById(id);
+    return castView(view, id, who, cls);
+  }
+
+  public static <T> T findOptionalViewAsType(View source, @IdRes int id, String who,
       Class<T> cls) {
     View view = source.findViewById(id);
     return castView(view, id, who, cls);
@@ -103,6 +109,32 @@ public final class Utils {
       Class<T> cls) {
     View view = findRequiredView(source, id, who);
     return castView(view, id, who, cls);
+  }
+
+  public static <T> T findRequiredViewAsType(View source, @IdRes int id, String who,
+                                             String cls) {
+    View view = findRequiredView(source, id, who);
+    return castView(view, id, who, cls);
+  }
+
+
+  @SuppressWarnings("unchecked")
+  public static <T> T castView(View view, @IdRes int id, String who, String cls) {
+    try {
+      Class<?> clazz = view.getContext().getClassLoader().loadClass(cls);
+      return (T) clazz.cast(view);
+    } catch (ClassCastException e) {
+      String name = getResourceEntryName(view, id);
+      throw new IllegalStateException("View '"
+              + name
+              + "' with ID "
+              + id
+              + " for "
+              + who
+              + " was of the wrong type. See cause for more info.", e);
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException(e.getMessage());
+    }
   }
 
   public static <T> T castView(View view, @IdRes int id, String who, Class<T> cls) {

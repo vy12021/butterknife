@@ -3,15 +3,15 @@ apply plugin: 'com.github.ben-manes.versions'
 buildscript {
   ext.versions = [
       'minSdk': 14,
-      'compileSdk': 25,
-      'buildTools': '26.0.2',
+      'compileSdk': 27,
+      'buildTools': '27.0.2',
 
-      'supportLibrary': '25.3.1',
+      'supportLibrary': '27.0.2',
       'androidPlugin': '3.0.1',
       'androidTools': '26.0.0',
-      'kotlin': '1.1.51',
+      'kotlin': '1.2.31',
 
-      'release': '8.8.1.4',
+      'release': '8.8.1.5',
   ]
 
   ext.deps = [

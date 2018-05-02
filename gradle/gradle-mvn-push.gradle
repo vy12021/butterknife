@@ -21,17 +21,17 @@ version = VERSION_NAME
 group = GROUP
 
 def isReleaseBuild() {
-  return !VERSION_NAME.contains("snapshot")
+  return !VERSION_NAME.contains("SNAPSHOT")
 }
 
 def getReleaseRepositoryUrl() {
   return hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
-      : "http://git.dou-pai.com:8081/nexus/content/repositories/bhb-release/"
+      : "http://nexus3.dou-pai.com/repository/android-snapshot/"
 }
 
 def getSnapshotRepositoryUrl() {
   return hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
-      : "http://git.dou-pai.com:8081/nexus/content/repositories/bhb-snapshot/"
+      : "http://nexus3.dou-pai.com/repository/android-snapshot/"
 }
 
 def getRepositoryUsername() {

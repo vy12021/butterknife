@@ -379,7 +379,8 @@ final class BindingSet {
           builder.add(", $S", asHumanDescription(singletonList(fieldBinding)));
         }
         if (requiresCast) {
-          builder.add(", $T.class", fieldBinding.getRawType());
+          // builder.add(", $T.class", fieldBinding.getRawType());
+          builder.add(", $S", fieldBinding.getRawType().reflectionName());
         }
         builder.add(")");
       }
