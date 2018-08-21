@@ -1146,6 +1146,13 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       conditions = (String[]) annotationRequired.invoke(annotation);
     }
 
+    // TODO isHandle
+    boolean handle = false;
+    Method annotationRetry = annotationClass.getDeclaredMethod("handle");
+    if (annotationRetry.getReturnType() == boolean.class) {
+      handle = (boolean) annotationRetry.invoke(annotation);
+    }
+
     // TODO getKey
     String key = null;
     Method annotationKey = annotationClass.getDeclaredMethod("key");
@@ -1294,7 +1301,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     MethodViewBinding binding = new MethodViewBinding(name,
-            Arrays.asList(parameters), conditions, key, required);
+            Arrays.asList(parameters), conditions, handle, key, required);
     BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
     for (int id : ids) {
       QualifiedId qualifiedId = elementToQualifiedId(element, id);

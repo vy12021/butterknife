@@ -3,12 +3,17 @@ package com.example.butterknife.library;
 import android.app.Activity;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.util.Log;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.example.butterknife.R;
+
+import java.util.List;
 
 import butterknife.Bind;
 import butterknife.BindString;
@@ -19,14 +24,14 @@ import butterknife.OnClick;
 import butterknife.OnItemClick;
 import butterknife.OnLongClick;
 import butterknife.ViewController;
-
-import com.example.butterknife.R;
-
-import java.util.List;
+import butterknife.internal.ClickSession;
 
 import static android.widget.Toast.LENGTH_SHORT;
 
 public class SimpleActivity extends Activity implements ViewController, Condition {
+
+  private final static String TAG = SimpleActivity.class.getSimpleName();
+
   private static final ButterKnife.Action<View> ALPHA_FADE = new ButterKnife.Action<View>() {
     @Override public void apply(@NonNull View view, int index) {
       AlphaAnimation alphaAnimation = new AlphaAnimation(0, 1);
@@ -49,10 +54,11 @@ public class SimpleActivity extends Activity implements ViewController, Conditio
 
   @BindViews({ R.id.title, R.id.subtitle, R.id.hello }) List<View> headerViews;
 
+  private boolean retryFlag;
   private SimpleAdapter adapter;
 
-  @OnClick(value = {R.id.hello}, required = {"condition"}, key = "hello") void sayHello() {
-    // Toast.makeText(this, "Hello, views!", LENGTH_SHORT).show();
+  @OnClick(value = {R.id.hello}, required = {"condition"}, handle = true, key = "hello") void sayHello() {
+    Toast.makeText(this, "Hello, views!", LENGTH_SHORT).show();
     ButterKnife.apply(headerViews, ALPHA_FADE);
   }
 
@@ -82,7 +88,7 @@ public class SimpleActivity extends Activity implements ViewController, Conditio
 
   @Override
   public void postAction(View view, String clazz, String method, String key) {
-    Toast.makeText(this, clazz + "." + method + ": " + key, LENGTH_SHORT).show();
+    Log.e(TAG, clazz + "." + method + ": " + key);
   }
 
   @NonNull
@@ -93,8 +99,23 @@ public class SimpleActivity extends Activity implements ViewController, Conditio
 
   @Override
   public boolean condition() {
-    Toast.makeText(this, "Click to test condition", LENGTH_SHORT).show();
-    return true;
+    Log.e(TAG, "Click to test condition: ");
+    return retryFlag;
+  }
+
+  @Override
+  public boolean condition(final ClickSession session) {
+    Log.e(TAG, "Click to test condition session: " + retryFlag);
+    if (!retryFlag) {
+      getView().postDelayed(new Runnable() {
+        @Override
+        public void run() {
+          retryFlag = !retryFlag;
+          session.execute(true);
+        }
+      }, 3000);
+    }
+    return retryFlag;
   }
 
 }

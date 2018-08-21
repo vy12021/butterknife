@@ -73,6 +73,6 @@ class ButterKnifePlugin : Plugin<Project> {
   }
 
   private operator fun <T : Any> ExtensionContainer.get(type: KClass<T>): T {
-    return getByType(type.java)!!
+    return getByType(type.java)
   }
 }

@@ -1,5 +1,7 @@
 package com.example.butterknife.library;
 
+import butterknife.internal.ClickSession;
+
 /**
  * Conditions for ViewController
  *
@@ -10,5 +12,6 @@ package com.example.butterknife.library;
 public interface Condition {
 
     boolean condition();
+    boolean condition(ClickSession session);
 
 }

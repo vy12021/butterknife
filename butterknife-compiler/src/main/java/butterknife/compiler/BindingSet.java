@@ -38,6 +38,7 @@ import static com.google.auto.common.MoreElements.getPackage;
 import static java.util.Collections.singletonList;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.PROTECTED;
 import static javax.lang.model.element.Modifier.PUBLIC;
 
 /** A set of all the bindings requested by a single type. */
@@ -57,6 +58,9 @@ final class BindingSet {
   static final ClassName CONTEXT_COMPAT =
       ClassName.get("android.support.v4.content", "ContextCompat");
   private static final ClassName VIEW_CONTROLLER = ClassName.get("butterknife", "ViewController");
+  private static final ClassName CLICK_SESSION = ClassName.get("butterknife.internal", "ClickSession");
+  private static final ClassName METHOD_EXECUTOR = ClassName.get("butterknife.internal", "MethodExecutor");
+  private static final ClassName CONDITION = ClassName.get("butterknife.internal", "Condition");
   static final ClassName ANIMATION_UTILS =
           ClassName.get("android.view.animation", "AnimationUtils");
 
@@ -456,7 +460,7 @@ final class BindingSet {
             .returns(bestGuess(method.returnType()));
         String[] parameterTypes = method.parameters();
         for (int i = 0, count = parameterTypes.length; i < count; i++) {
-          callbackMethod.addParameter(bestGuess(parameterTypes[i]), "p" + i);
+          callbackMethod.addParameter(bestGuess(parameterTypes[i]), "p" + i, FINAL);
         }
 
         boolean returned = false;
@@ -465,63 +469,127 @@ final class BindingSet {
 
         if (methodBindings.containsKey(method)) {
           for (MethodViewBinding methodBinding : methodBindings.get(method)) {
-            String[] conditions = methodBinding.getConditions();
+
+            boolean handle = methodBinding.isHandle();
+            String[] requireds = methodBinding.getRequireds();
             String key = methodBinding.getKey();
-            if ((null != conditions && conditions.length > 0) || (null != key && !"".equals(key))) {
-              if (null != conditions && conditions.length > 0) {
-                for (String condition : conditions) {
-                  if (checkJavaSymbol(condition)) {
-                    builder.beginControlFlow("if (!target.$L())", condition);
-                    if (hasReturnType) {
-                      builder.addStatement("return $L", method.defaultReturn());
-                    } else {
-                      builder.addStatement("return");
-                    }
-                    builder.endControlFlow();
-                  } else {
-                    throw new RuntimeException("Condition\" "
-                          + condition + "\" must be a valid java symbol");
-                  }
+            // Condition[] conditions = new Condition[requireds.length];
+            builder.addStatement("$T[] conditions = new $T[$L]", CONDITION, CONDITION, requireds.length);
+
+            // TODO generate MethodExecutor
+            /*MethodExecutor executor = new MethodExecutor() {
+              @Override
+              protected Object execute() {
+                target.postAction(View, Class, Method, key);
+                if (hasReturn) {
+                  return target.Method(View...);
+                } else {
+                  target.Method(View...);
+                  return null;
                 }
               }
-              if (null != key && !"".equals(key)) {
-                builder.beginControlFlow("if (!$T.class.isInstance(target))",
-                        VIEW_CONTROLLER)
-                        .addStatement("throw new RuntimeException("
-                                + "\"Target must be implements from $T\")", VIEW_CONTROLLER)
-                        .endControlFlow();
-                builder.addStatement("target.postAction(p0, $S, $S, $S)",
-                        targetTypeName, methodBinding.getName(), key);
-              }
+            };*/
+            TypeSpec.Builder executorType = TypeSpec.anonymousClassBuilder("")
+                    .superclass(METHOD_EXECUTOR);
+            MethodSpec.Builder methodExecute = MethodSpec.methodBuilder("execute")
+                    .addAnnotation(Override.class)
+                    .returns(Object.class)
+                    .addModifiers(PUBLIC);
+            // TODO generate method block
+            CodeBlock.Builder methodBlock = CodeBlock.builder();
+            if (hasReturnType) {
+              methodBlock.add("Object result = ");
             }
-            if (hasReturnType && !returned) {
-              builder.add("return ");
-              returned = true;
-            }
-            builder.add("target.$L(", methodBinding.getName());
+            methodBlock.add("target.$L(", methodBinding.getName());
             List<Parameter> parameters = methodBinding.getParameters();
             String[] listenerParameters = method.parameters();
             for (int i = 0, count = parameters.size(); i < count; i++) {
               if (i > 0) {
                 builder.add(", ");
               }
-
               Parameter parameter = parameters.get(i);
               int listenerPosition = parameter.getListenerPosition();
-
               if (parameter.requiresCast(listenerParameters[listenerPosition])) {
                 if (debuggable) {
-                  builder.add("$T.castParam(p$L, $S, $L, $S, $L, $T.class)", UTILS,
-                      listenerPosition, method.name(), listenerPosition, methodBinding.getName(), i,
-                      parameter.getType());
+                  methodBlock.add("$T.castParam(p$L, $S, $L, $S, $L, $T.class)", UTILS,
+                          listenerPosition, method.name(), listenerPosition, methodBinding.getName(), i,
+                          parameter.getType());
                 } else {
-                  builder.add("($T) p$L", parameter.getType(), listenerPosition);
+                  methodBlock.add("($T) p$L", parameter.getType(), listenerPosition);
                 }
               } else {
-                builder.add("p$L", listenerPosition);
+                methodBlock.add("p$L", listenerPosition);
               }
             }
-            builder.add(");\n");
+            methodBlock.add(");\n");
+            // TODO generate postAction()
+            if (null != key && !"".equals(key)) {
+              methodBlock.beginControlFlow("if (!$T.class.isInstance(target))",
+                      VIEW_CONTROLLER)
+                      .addStatement("throw new RuntimeException("
+                              + "\"Target must be implements from $T\")", VIEW_CONTROLLER)
+                      .endControlFlow();
+              methodBlock.addStatement("target.postAction(p0, $S, $S, $S)",
+                      targetTypeName, methodBinding.getName(), key);
+            }
+            if (hasReturnType) {
+              methodBlock.addStatement("return result");
+            } else {
+              methodBlock.addStatement("return null");
+            }
+            methodExecute.addCode(methodBlock.build());
+            executorType.addMethod(methodExecute.build());
+            builder.addStatement("$T executor = $L", METHOD_EXECUTOR, executorType.build());
+
+            // final ClickSession session = new ClickSession(target, p0, conditions, executor);
+            builder.addStatement("final $T session = new $T(target, p0, conditions, executor)",
+                    CLICK_SESSION, CLICK_SESSION);
+
+            // TODO generate conditions
+            /*for (int i = 0; i < requireds.length; i++) {
+              conditions[i] = new Condition("condition") {
+                @Override
+                protected boolean require() {
+                  if (handle) {
+                    return target.condition();
+                  } else {
+                    return target.condition(session);
+                  }
+                }
+              };
+            }*/
+            if (requireds.length > 0) {
+              String required;
+              for (int i = 0; i < requireds.length; i++) {
+                if (checkJavaSymbol(required = requireds[i])) {
+                  TypeSpec.Builder typeCondition = TypeSpec.anonymousClassBuilder("$S", required)
+                          .superclass(CONDITION);
+                  MethodSpec.Builder methodRequired = MethodSpec.methodBuilder("require")
+                          .addAnnotation(Override.class)
+                          .addModifiers(PROTECTED)
+                          .returns(boolean.class);
+                  if (!handle) {
+                    methodRequired.addStatement("return target.$L()", required);
+                  } else {
+                    methodRequired.addStatement("return target.$L(session)", required);
+                  }
+                  typeCondition.addMethod(methodRequired.build());
+                  builder.addStatement("conditions[$L] = $L", i, typeCondition.build());
+                } else {
+                  throw new RuntimeException("Condition\" "
+                        + required + "\" must be a valid java symbol");
+                }
+              }
+            }
+
+            // TODO do real action
+            // session.execute(true);
+            builder.addStatement("session.execute(true)");
+
+            if (hasReturnType && !returned) {
+              builder.addStatement("return ($L) session.getInvokeReturned()", method.returnType());
+              returned = true;
+            }
           }
         } else {
           builder.addStatement("return $L", method.defaultReturn());

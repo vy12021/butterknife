@@ -1,9 +1,12 @@
 package butterknife;
 
-import butterknife.compiler.ButterKnifeProcessor;
 import com.google.testing.compile.JavaFileObjects;
-import javax.tools.JavaFileObject;
+
 import org.junit.Test;
+
+import javax.tools.JavaFileObject;
+
+import butterknife.compiler.ButterKnifeProcessor;
 
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.testing.compile.JavaSourceSubjectFactory.javaSource;
@@ -14,10 +17,13 @@ public class OnClickTest {
         + "package test;\n"
         + "import android.view.View;\n"
         + "import butterknife.OnClick;\n"
+        + "import butterknife.internal.ClickSession;\n"
+        + "import butterknife.internal.Condition;\n"
         + "import butterknife.ViewController;\n"
         + "public class Test implements ViewController {\n"
-        + "  @OnClick(value = {1}, required = {\"condition\"}, key = \"Key\") void doStuff() {}\n"
+        + "  @OnClick(value = {1}, required = {\"condition\"}, handle = true, key = \"Key\") void doStuff() {}\n"
 
+            + "public boolean condition(ClickSession session) {return true;}\n"
             + "public boolean condition() {return true;}\n"
             + "@Override public void postAction(View view, String clazz, String method, String key) {}\n"
             + "@Override public View getView() {return null;}\n"
@@ -32,9 +38,13 @@ public class OnClickTest {
         + "import android.view.View;\n"
         + "import butterknife.Unbinder;\n"
         + "import butterknife.ViewController;\n"
+        + "import butterknife.internal.ClickSession;\n"
+        + "import butterknife.internal.Condition;\n"
         + "import butterknife.internal.DebouncingOnClickListener;\n"
+        + "import butterknife.internal.MethodExecutor;\n"
         + "import butterknife.internal.Utils;\n"
         + "import java.lang.IllegalStateException;\n"
+        + "import java.lang.Object;\n"
         + "import java.lang.Override;\n"
         + "public class Test_ViewBinding implements Unbinder {\n"
         + "  private Test target;\n"
@@ -47,15 +57,29 @@ public class OnClickTest {
         + "    view1 = view;\n"
         + "    view.setOnClickListener(new DebouncingOnClickListener() {\n"
         + "      @Override\n"
-        + "      public void doClick(View p0) {\n"
-        + "        if (!ViewController.class.isInstance(target)) {\n"
-        + "          throw new RuntimeException(\"Target must be implements from ViewController\");\n"
-        + "        }\n"
-        + "        if (!target.condition()) {\n"
-        + "          return;\n"
-        + "        }\n"
-        + "        target.postAction(p0, \"test.Test\", \"doStuff\", \"Key\");\n"
-        + "        target.doStuff();\n"
+        + "      public void doClick(final View p0) {\n"
+        + "        Condition[] conditions = new Condition[1];\n"
+        + "        MethodExecutor executor = new MethodExecutor() {\n"
+        + "          @Override\n"
+        + "          public Object execute() {\n"
+        + "            target.doStuff();\n"
+        + "            if (!ViewController.class.isInstance(target)) {\n"
+        + "              throw new RuntimeException(\"Target must be implements from ViewController\");\n"
+        + "            }\n"
+        + "            target.postAction(p0, \"test.Test\", \"doStuff\", \"Key\");\n"
+        + "            return null;\n"
+        + "          }\n"
+        + "        };\n"
+        + "        final ClickSession session = new ClickSession(target, p0, conditions, executor);\n"
+        + "        conditions[0] = new Condition(\"condition\") {\n"
+        + "          @Override\n"
+        + "          protected boolean require() {\n"
+        //+ "            return target.condition();\n"
+        + "            return target.condition(session);\n"
+        + "          }\n"
+        + "        };\n"
+        + "        session.execute(true);\n"
+        //+ "        return;\n"
         + "      }\n"
         + "    });\n"
         + "  }\n"

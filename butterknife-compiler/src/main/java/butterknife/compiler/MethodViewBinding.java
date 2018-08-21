@@ -8,23 +8,26 @@ final class MethodViewBinding implements MemberViewBinding {
   private final String name;
   private final List<Parameter> parameters;
   private final boolean required;
-  private final String[] conditions;
+  private final String[] requireds;
   private final String key;
+  private final boolean handle;
 
   MethodViewBinding(String name, List<Parameter> parameters, boolean required) {
     this.name = name;
     this.parameters = Collections.unmodifiableList(new ArrayList<>(parameters));
     this.required = required;
-    this.conditions = null;
+    this.requireds = null;
     this.key = null;
+    this.handle = false;
   }
 
   MethodViewBinding(String name, List<Parameter> parameters,
-                    String[] conditions, String key, boolean required) {
+                    String[] requireds, boolean handle, String key, boolean required) {
     this.name = name;
     this.parameters = Collections.unmodifiableList(new ArrayList<>(parameters));
     this.required = required;
-    this.conditions = conditions;
+    this.requireds = requireds;
+    this.handle = handle;
     this.key = key;
   }
 
@@ -36,8 +39,12 @@ final class MethodViewBinding implements MemberViewBinding {
     return parameters;
   }
 
-  public String[] getConditions() {
-    return conditions;
+  public String[] getRequireds() {
+    return null == requireds ? new String[0] : requireds;
+  }
+
+  public boolean isHandle() {
+    return handle;
   }
 
   public String getKey() {
