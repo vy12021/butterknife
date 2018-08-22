@@ -95,6 +95,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   private static final String OPTION_SDK_INT = "butterknife.minSdk";
   private static final String OPTION_DEBUGGABLE = "butterknife.debuggable";
   static final Id NO_ID = new Id(-1);
+  static final String BINDER_TYPE = "butterknife.ViewBinder";
   static final String VIEW_TYPE = "android.view.View";
   static final String ACTIVITY_TYPE = "android.app.Activity";
   static final String DIALOG_TYPE = "android.app.Dialog";
@@ -1140,10 +1141,10 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     // TODO getRequired
-    String[] conditions = null;
+    String[] requireds = null;
     Method annotationRequired = annotationClass.getDeclaredMethod("required");
     if (annotationRequired.getReturnType() == String[].class) {
-      conditions = (String[]) annotationRequired.invoke(annotation);
+      requireds = (String[]) annotationRequired.invoke(annotation);
     }
 
     // TODO isHandle
@@ -1301,7 +1302,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     MethodViewBinding binding = new MethodViewBinding(name,
-            Arrays.asList(parameters), conditions, handle, key, required);
+            Arrays.asList(parameters), requireds, handle, key, required);
     BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
     for (int id : ids) {
       QualifiedId qualifiedId = elementToQualifiedId(element, id);
@@ -1406,7 +1407,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     if (args.length > 0) {
       message = String.format(message, args);
     }
-
     processingEnv.getMessager().printMessage(kind, message, element);
   }
 

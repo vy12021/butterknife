@@ -23,12 +23,12 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import butterknife.OnItemClick;
 import butterknife.OnLongClick;
-import butterknife.ViewController;
+import butterknife.ViewBinder;
 import butterknife.internal.ClickSession;
 
 import static android.widget.Toast.LENGTH_SHORT;
 
-public class SimpleActivity extends Activity implements ViewController, Condition {
+public class SimpleActivity extends Activity implements ViewBinder, Condition {
 
   private final static String TAG = SimpleActivity.class.getSimpleName();
 
@@ -62,7 +62,7 @@ public class SimpleActivity extends Activity implements ViewController, Conditio
     ButterKnife.apply(headerViews, ALPHA_FADE);
   }
 
-  @OnLongClick(R.id.hello) boolean sayGetOffMe() {
+  @OnLongClick(value = R.id.hello, required = {"condition"}, handle = true, key = "hello Long") boolean sayGetOffMe() {
     Toast.makeText(this, "Let go of me!", LENGTH_SHORT).show();
     return true;
   }
@@ -74,7 +74,7 @@ public class SimpleActivity extends Activity implements ViewController, Conditio
   @Override protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.simple_activity);
-    ButterKnife.bindController(this);
+    ButterKnife.bind((ViewBinder) this);
 
     // Contrived code to use the bound fields.
     title.setText(butterKnife);
@@ -89,6 +89,16 @@ public class SimpleActivity extends Activity implements ViewController, Conditio
   @Override
   public void postAction(View view, String clazz, String method, String key) {
     Log.e(TAG, clazz + "." + method + ": " + key);
+  }
+
+  @Override
+  public void onPreClick(@NonNull ClickSession session) {
+    Log.e(TAG, "onPreClick--->" + session.executor.toString());
+  }
+
+  @Override
+  public void onPostClick(@NonNull ClickSession session) {
+    Log.e(TAG, "onPostClick--->" + session.executor.toString());
   }
 
   @NonNull

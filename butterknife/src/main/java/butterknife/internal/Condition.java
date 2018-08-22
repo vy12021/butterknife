@@ -3,7 +3,7 @@ package butterknife.internal;
 import butterknife.OnClick;
 
 /**
- * The class wrapper for {@link OnClick#required()}
+ * The class wrapper for {@link OnClick#required()}...
  */
 public abstract class Condition {
 

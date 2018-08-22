@@ -3,7 +3,7 @@ package com.example.butterknife.library;
 import butterknife.internal.ClickSession;
 
 /**
- * Conditions for ViewController
+ * Conditions for ViewBinder
  *
  *
  * Created by LeoTesla on 2017/7/15.

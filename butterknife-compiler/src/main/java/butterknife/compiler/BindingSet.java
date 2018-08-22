@@ -31,6 +31,7 @@ import butterknife.internal.ListenerClass;
 import butterknife.internal.ListenerMethod;
 
 import static butterknife.compiler.ButterKnifeProcessor.ACTIVITY_TYPE;
+import static butterknife.compiler.ButterKnifeProcessor.BINDER_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.DIALOG_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.VIEW_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.isSubtypeOfType;
@@ -57,7 +58,7 @@ final class BindingSet {
   static final ClassName BITMAP_FACTORY = ClassName.get("android.graphics", "BitmapFactory");
   static final ClassName CONTEXT_COMPAT =
       ClassName.get("android.support.v4.content", "ContextCompat");
-  private static final ClassName VIEW_CONTROLLER = ClassName.get("butterknife", "ViewController");
+  private static final ClassName VIEW_BINDER = ClassName.get("butterknife", "ViewBinder");
   private static final ClassName CLICK_SESSION = ClassName.get("butterknife.internal", "ClickSession");
   private static final ClassName METHOD_EXECUTOR = ClassName.get("butterknife.internal", "MethodExecutor");
   private static final ClassName CONDITION = ClassName.get("butterknife.internal", "Condition");
@@ -67,6 +68,7 @@ final class BindingSet {
   private final TypeName targetTypeName;
   private final ClassName bindingClassName;
   private final boolean isFinal;
+  private final boolean isBinder;
   private final boolean isView;
   private final boolean isActivity;
   private final boolean isDialog;
@@ -76,12 +78,14 @@ final class BindingSet {
   private final BindingSet parentBinding;
 
   private BindingSet(TypeName targetTypeName, ClassName bindingClassName, boolean isFinal,
-      boolean isView, boolean isActivity, boolean isDialog, ImmutableList<ViewBinding> viewBindings,
-      ImmutableList<FieldCollectionViewBinding> collectionBindings,
-      ImmutableList<ResourceBinding> resourceBindings, BindingSet parentBinding) {
+                     boolean isBinder, boolean isView, boolean isActivity, boolean isDialog,
+                     ImmutableList<ViewBinding> viewBindings,
+                     ImmutableList<FieldCollectionViewBinding> collectionBindings,
+                     ImmutableList<ResourceBinding> resourceBindings, BindingSet parentBinding) {
     this.isFinal = isFinal;
     this.targetTypeName = targetTypeName;
     this.bindingClassName = bindingClassName;
+    this.isBinder = isBinder;
     this.isView = isView;
     this.isActivity = isActivity;
     this.isDialog = isDialog;
@@ -480,16 +484,17 @@ final class BindingSet {
             /*MethodExecutor executor = new MethodExecutor() {
               @Override
               protected Object execute() {
-                target.postAction(View, Class, Method, key);
                 if (hasReturn) {
-                  return target.Method(View...);
+                  Object result = target.Method(View...);
+                  return result;
                 } else {
                   target.Method(View...);
                   return null;
                 }
               }
             };*/
-            TypeSpec.Builder executorType = TypeSpec.anonymousClassBuilder("")
+            TypeSpec.Builder executorType = TypeSpec.anonymousClassBuilder(
+                    "$S", methodBinding.getName())
                     .superclass(METHOD_EXECUTOR);
             MethodSpec.Builder methodExecute = MethodSpec.methodBuilder("execute")
                     .addAnnotation(Override.class)
@@ -522,13 +527,13 @@ final class BindingSet {
               }
             }
             methodBlock.add(");\n");
-            // TODO generate postAction()
+            // TODO generate postAction() method, will remove in the future.
             if (null != key && !"".equals(key)) {
-              methodBlock.beginControlFlow("if (!$T.class.isInstance(target))",
-                      VIEW_CONTROLLER)
-                      .addStatement("throw new RuntimeException("
-                              + "\"Target must be implements from $T\")", VIEW_CONTROLLER)
-                      .endControlFlow();
+              if (!isBinder) {
+                throw new RuntimeException(
+                        String.format("Target must be implements from %s)",
+                                VIEW_BINDER.reflectionName()));
+              }
               methodBlock.addStatement("target.postAction(p0, $S, $S, $S)",
                       targetTypeName, methodBinding.getName(), key);
             }
@@ -542,8 +547,8 @@ final class BindingSet {
             builder.addStatement("$T executor = $L", METHOD_EXECUTOR, executorType.build());
 
             // final ClickSession session = new ClickSession(target, p0, conditions, executor);
-            builder.addStatement("final $T session = new $T(target, p0, conditions, executor)",
-                    CLICK_SESSION, CLICK_SESSION);
+            builder.addStatement("final $T session = new $T(target, p0, $S, conditions, executor)",
+                    CLICK_SESSION, CLICK_SESSION, key);
 
             // TODO generate conditions
             /*for (int i = 0; i < requireds.length; i++) {
@@ -582,12 +587,24 @@ final class BindingSet {
               }
             }
 
-            // TODO do real action
+            // TODO Notify the click session before execute.
+            if (isBinder) {
+              builder.addStatement("target.onPreClick(session)");
+            }
+            // TODO Do real action
             // session.execute(true);
-            builder.addStatement("session.execute(true)");
-
+            builder.addStatement("boolean result = session.execute(true)");
+            if (isBinder) {
+              builder.beginControlFlow("if (result)");
+              builder.addStatement("target.onPostClick(session)");
+              builder.endControlFlow();
+            }
             if (hasReturnType && !returned) {
-              builder.addStatement("return ($L) session.getInvokeReturned()", method.returnType());
+              builder.beginControlFlow("if (result)");
+              builder.addStatement("return ($L) session.executor.getReturnedValue()",
+                      method.returnType());
+              builder.endControlFlow();
+              builder.addStatement("return $L", method.defaultReturn());
               returned = true;
             }
           }
@@ -776,6 +793,7 @@ final class BindingSet {
   static Builder newBuilder(TypeElement enclosingElement) {
     TypeMirror typeMirror = enclosingElement.asType();
 
+    boolean isController = isSubtypeOfType(typeMirror, BINDER_TYPE);
     boolean isView = isSubtypeOfType(typeMirror, VIEW_TYPE);
     boolean isActivity = isSubtypeOfType(typeMirror, ACTIVITY_TYPE);
     boolean isDialog = isSubtypeOfType(typeMirror, DIALOG_TYPE);
@@ -791,13 +809,14 @@ final class BindingSet {
     ClassName bindingClassName = ClassName.get(packageName, className + "_ViewBinding");
 
     boolean isFinal = enclosingElement.getModifiers().contains(Modifier.FINAL);
-    return new Builder(targetType, bindingClassName, isFinal, isView, isActivity, isDialog);
+    return new Builder(targetType, bindingClassName, isFinal, isController, isView, isActivity, isDialog);
   }
 
   static final class Builder {
     private final TypeName targetTypeName;
     private final ClassName bindingClassName;
     private final boolean isFinal;
+    private final boolean isBinder;
     private final boolean isView;
     private final boolean isActivity;
     private final boolean isDialog;
@@ -810,10 +829,11 @@ final class BindingSet {
     private final ImmutableList.Builder<ResourceBinding> resourceBindings = ImmutableList.builder();
 
     private Builder(TypeName targetTypeName, ClassName bindingClassName, boolean isFinal,
-        boolean isView, boolean isActivity, boolean isDialog) {
+                    boolean isBinder, boolean isView, boolean isActivity, boolean isDialog) {
       this.targetTypeName = targetTypeName;
       this.bindingClassName = bindingClassName;
       this.isFinal = isFinal;
+      this.isBinder = isBinder;
       this.isView = isView;
       this.isActivity = isActivity;
       this.isDialog = isDialog;
@@ -874,7 +894,8 @@ final class BindingSet {
       for (ViewBinding.Builder builder : viewIdMap.values()) {
         viewBindings.add(builder.build());
       }
-      return new BindingSet(targetTypeName, bindingClassName, isFinal, isView, isActivity, isDialog,
+      return new BindingSet(targetTypeName, bindingClassName, isFinal,
+              isBinder, isView, isActivity, isDialog,
           viewBindings.build(), collectionBindings.build(), resourceBindings.build(),
           parentBinding);
     }

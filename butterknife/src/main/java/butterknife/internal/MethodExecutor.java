@@ -7,8 +7,13 @@ import android.support.annotation.Nullable;
  */
 public abstract class MethodExecutor {
 
+  private String methodName;
   private boolean invoked;
-  private Object returned;
+  private Object returnedValue;
+
+  public MethodExecutor(String methodName) {
+    this.methodName = methodName;
+  }
 
   @Nullable
   protected abstract Object execute();
@@ -16,16 +21,27 @@ public abstract class MethodExecutor {
   final void invoke() {
     if (!invoked) {
       invoked = true;
-      returned = execute();
+      returnedValue = execute();
     }
   }
 
-  public final Object getReturned() {
-    return returned;
+  public final String getMethodName() {
+    return methodName;
+  }
+
+  public final Object getReturnedValue() {
+    return returnedValue;
   }
 
   public final boolean isInvoked() {
     return invoked;
   }
 
+  @Override
+  public String toString() {
+    return "MethodExecutor{" +
+            "methodName='" + methodName + '\'' +
+            ", invoked=" + invoked +
+            '}';
+  }
 }

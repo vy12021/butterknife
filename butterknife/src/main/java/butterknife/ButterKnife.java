@@ -119,7 +119,7 @@ public final class ButterKnife {
    * @param target Target activity for view binding.
    */
   @NonNull @UiThread
-  public static Unbinder bindController(@NonNull ViewController target) {
+  public static Unbinder bind(@NonNull ViewBinder target) {
     return createBinding(target, target.getView());
   }
 
@@ -130,7 +130,7 @@ public final class ButterKnife {
    * @param target Target activity for view binding.
    */
   @NonNull @UiThread
-  public static Unbinder bindController(@NonNull ViewController target, View view) {
+  public static Unbinder bind(@NonNull ViewBinder target, View view) {
     View sourceView = null != view ? view : target.getView();
     return createBinding(target, sourceView);
   }
