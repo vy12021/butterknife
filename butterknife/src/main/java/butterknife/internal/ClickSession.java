@@ -1,7 +1,11 @@
 package butterknife.internal;
 
+import android.content.res.Resources;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.view.View;
+
+import java.lang.reflect.Method;
 
 import butterknife.OnClick;
 import butterknife.OnItemClick;
@@ -38,7 +42,7 @@ public class ClickSession {
    */
   public final MethodExecutor executor;
 
-  public ClickSession(Object target, View view, @Nullable String key,
+  public ClickSession(@Nullable Object target, @Nullable View view, @Nullable String key,
                       @Nullable Condition[] conditions, MethodExecutor executor) {
     this.target = target;
     this.view = view;
@@ -48,7 +52,7 @@ public class ClickSession {
   }
 
   /**
-   * run Action
+   * Run Action
    * @param checkRequired true, check conditions of {@link OnClick#required()}
    */
   public final boolean execute(boolean checkRequired) {
@@ -61,6 +65,74 @@ public class ClickSession {
     }
     executor.invoke();
     return true;
+  }
+
+  /**
+   * Create a click session from an action.
+   * @param action  runnable
+   * @return        ClickSession
+   */
+  public static ClickSession create(final Runnable action) {
+    return new ClickSession(null, null, null, null,
+            new MethodExecutor(null) {
+              @Nullable
+              @Override
+              protected Object execute() {
+                action.run();
+                return null;
+              }
+            });
+  }
+
+  /**
+   * Create a click session from an action.
+   * @param action  runnable
+   * @return        ClickSession
+   */
+  public static ClickSession create(@NonNull final ViewBinder binder,
+                                    @NonNull final Runnable action,
+                                    String... requireds) {
+    return create((Object) binder, action, requireds);
+  }
+
+  /**
+   * Create a click session from an action.
+   * @param action  runnable
+   * @return        ClickSession
+   */
+  public static ClickSession create(@NonNull final Object binder,
+                                    @NonNull final Runnable action,
+                                    String... requireds) {
+    Condition[] conditions = new Condition[requireds.length];
+    final ClickSession clickSession = new ClickSession(binder, null, null, conditions,
+            new MethodExecutor(null) {
+              @Nullable
+              @Override
+              protected Object execute() {
+                action.run();
+                return null;
+              }
+            });
+    for (int i = 0; i < requireds.length; i++) {
+      conditions[i] = new Condition(requireds[i]) {
+        @Override
+        protected boolean require() {
+          try {
+            Method checkMethod = binder.getClass().getMethod(required, ClickSession.class);
+            checkMethod.setAccessible(true);
+            return (boolean) checkMethod.invoke(binder, clickSession);
+          } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+            throw new Resources.NotFoundException(
+                    String.format("The method %s not found.", required));
+          } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+          }
+        }
+      };
+    }
+    return clickSession;
   }
 
 }
