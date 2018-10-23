@@ -20,8 +20,8 @@ public class OnCheckedChangedTest {
 
     JavaFileObject bindingSource = JavaFileObjects.forSourceString("test/Test_ViewBinding", ""
         + "package test;\n"
-        + "import android.support.annotation.CallSuper;\n"
-        + "import android.support.annotation.UiThread;\n"
+        + "import androidx.annotation.CallSuper;\n"
+        + "import androidx.annotation.UiThread;\n"
         + "import android.view.View;\n"
         + "import android.widget.CompoundButton;\n"
         + "import butterknife.Unbinder;\n"

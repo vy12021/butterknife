@@ -1,6 +1,6 @@
 package butterknife.internal;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 /**
  * method delegate

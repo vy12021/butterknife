@@ -20,8 +20,8 @@ public class OnTextChangedTest {
 
     JavaFileObject bindingSource = JavaFileObjects.forSourceString("test/Test_ViewBinding", ""
         + "package test;\n"
-        + "import android.support.annotation.CallSuper;\n"
-        + "import android.support.annotation.UiThread;\n"
+        + "import androidx.annotation.CallSuper;\n"
+        + "import androidx.annotation.UiThread;\n"
         + "import android.text.Editable;\n"
         + "import android.text.TextWatcher;\n"
         + "import android.view.View;\n"
@@ -86,8 +86,8 @@ public class OnTextChangedTest {
 
     JavaFileObject bindingSource = JavaFileObjects.forSourceString("test/Test_ViewBinding", ""
             + "package test;\n"
-            + "import android.support.annotation.CallSuper;\n"
-            + "import android.support.annotation.UiThread;\n"
+            + "import androidx.annotation.CallSuper;\n"
+            + "import androidx.annotation.UiThread;\n"
             + "import android.text.Editable;\n"
             + "import android.text.TextWatcher;\n"
             + "import android.view.View;\n"
@@ -152,8 +152,8 @@ public class OnTextChangedTest {
 
     JavaFileObject bindingSource = JavaFileObjects.forSourceString("test/Test_ViewBinding", ""
             + "package test;\n"
-            + "import android.support.annotation.CallSuper;\n"
-            + "import android.support.annotation.UiThread;\n"
+            + "import androidx.annotation.CallSuper;\n"
+            + "import androidx.annotation.UiThread;\n"
             + "import android.text.Editable;\n"
             + "import android.text.TextWatcher;\n"
             + "import android.view.View;\n"

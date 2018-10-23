@@ -49,15 +49,15 @@ final class BindingSet {
   private static final ClassName CONTEXT = ClassName.get("android.content", "Context");
   private static final ClassName RESOURCES = ClassName.get("android.content.res", "Resources");
   private static final ClassName UI_THREAD =
-      ClassName.get("android.support.annotation", "UiThread");
+      ClassName.get("androidx.annotation", "UiThread");
   private static final ClassName CALL_SUPER =
-      ClassName.get("android.support.annotation", "CallSuper");
+      ClassName.get("androidx.annotation", "CallSuper");
   private static final ClassName SUPPRESS_LINT =
       ClassName.get("android.annotation", "SuppressLint");
   private static final ClassName UNBINDER = ClassName.get("butterknife", "Unbinder");
   static final ClassName BITMAP_FACTORY = ClassName.get("android.graphics", "BitmapFactory");
   static final ClassName CONTEXT_COMPAT =
-      ClassName.get("android.support.v4.content", "ContextCompat");
+      ClassName.get("androidx.core.content", "ContextCompat");
   private static final ClassName VIEW_BINDER = ClassName.get("butterknife", "ViewBinder");
   private static final ClassName CLICK_SESSION = ClassName.get("butterknife.internal", "ClickSession");
   private static final ClassName METHOD_EXECUTOR = ClassName.get("butterknife.internal", "MethodExecutor");
