@@ -41,14 +41,20 @@ public class ClickSession {
    * A delegate for method binding invoke.
    */
   public final MethodExecutor executor;
+  /**
+   * Whether invoke executor when conditions valid.
+   */
+  public final boolean pendingRetry;
 
   public ClickSession(@Nullable Object target, @Nullable View view, @Nullable String key,
-                      @Nullable Condition[] conditions, MethodExecutor executor) {
+                      @Nullable Condition[] conditions, MethodExecutor executor,
+                      boolean pendingRetry) {
     this.target = target;
     this.view = view;
     this.key = key;
     this.conditions = conditions;
     this.executor = executor;
+    this.pendingRetry = pendingRetry;
   }
 
   /**
@@ -81,7 +87,7 @@ public class ClickSession {
                 action.run();
                 return null;
               }
-            });
+            }, true);
   }
 
   /**
@@ -112,7 +118,7 @@ public class ClickSession {
                 action.run();
                 return null;
               }
-            });
+            }, true);
     for (int i = 0; i < requireds.length; i++) {
       conditions[i] = new Condition(requireds[i]) {
         @Override

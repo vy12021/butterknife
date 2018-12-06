@@ -474,7 +474,7 @@ final class BindingSet {
         if (methodBindings.containsKey(method)) {
           for (MethodViewBinding methodBinding : methodBindings.get(method)) {
 
-            boolean handle = methodBinding.isHandle();
+            boolean retry = methodBinding.pendingRetry();
             String[] requireds = methodBinding.getRequireds();
             String key = methodBinding.getKey();
             // Condition[] conditions = new Condition[requireds.length];
@@ -527,7 +527,7 @@ final class BindingSet {
               }
             }
             methodBlock.add(");\n");
-            // TODO generate postAction() method, will remove in the future.
+            // TODO generate postAction() method, will removed in the future.
             if (null != key && !"".equals(key)) {
               if (!isBinder) {
                 throw new RuntimeException(
@@ -547,19 +547,15 @@ final class BindingSet {
             builder.addStatement("$T executor = $L", METHOD_EXECUTOR, executorType.build());
 
             // final ClickSession session = new ClickSession(target, p0, conditions, executor);
-            builder.addStatement("final $T session = new $T(target, p0, $S, conditions, executor)",
-                    CLICK_SESSION, CLICK_SESSION, key);
+            builder.addStatement("final $T session = new $T(target, p0, $S, conditions, executor, $L)",
+                    CLICK_SESSION, CLICK_SESSION, key, retry);
 
             // TODO generate conditions
             /*for (int i = 0; i < requireds.length; i++) {
               conditions[i] = new Condition("condition") {
                 @Override
                 protected boolean require() {
-                  if (handle) {
-                    return target.condition();
-                  } else {
-                    return target.condition(session);
-                  }
+                  return target.condition(session);
                 }
               };
             }*/
@@ -573,11 +569,7 @@ final class BindingSet {
                           .addAnnotation(Override.class)
                           .addModifiers(PROTECTED)
                           .returns(boolean.class);
-                  if (!handle) {
-                    methodRequired.addStatement("return target.$L()", required);
-                  } else {
-                    methodRequired.addStatement("return target.$L(session)", required);
-                  }
+                  methodRequired.addStatement("return target.$L(session)", required);
                   typeCondition.addMethod(methodRequired.build());
                   builder.addStatement("conditions[$L] = $L", i, typeCondition.build());
                 } else {
@@ -704,7 +696,7 @@ final class BindingSet {
             left = type.indexOf('<', left + 1);
           } while (left != -1);
           return ParameterizedTypeName.get(typeClassName,
-              typeArguments.toArray(new TypeName[typeArguments.size()]));
+              typeArguments.toArray(new TypeName[0]));
         }
         return ClassName.bestGuess(type);
     }

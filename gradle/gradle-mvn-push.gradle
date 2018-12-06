@@ -39,7 +39,7 @@ def getRepositoryUsername() {
 }
 
 def getRepositoryPassword() {
-  return hasProperty('SONATYPE_NEXUS_PASSWORD') ? SONATYPE_NEXUS_PASSWORD : ""
+  return hasProperty('SONATYPE_NEXUS_PASSWORD') ? SONATYPE_NEXUS_PASSWORD : "Qzpm121121"
 }
 
 /*def getReleaseRepositoryUrl() {
