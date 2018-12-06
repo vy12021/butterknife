@@ -10,24 +10,15 @@ final class MethodViewBinding implements MemberViewBinding {
   private final boolean required;
   private final String[] requireds;
   private final String key;
-  private final boolean handle;
-
-  MethodViewBinding(String name, List<Parameter> parameters, boolean required) {
-    this.name = name;
-    this.parameters = Collections.unmodifiableList(new ArrayList<>(parameters));
-    this.required = required;
-    this.requireds = null;
-    this.key = null;
-    this.handle = false;
-  }
+  private final boolean pendingRetry;
 
   MethodViewBinding(String name, List<Parameter> parameters,
-                    String[] requireds, boolean handle, String key, boolean required) {
+                    String[] requireds, boolean pendingRetry, String key, boolean required) {
     this.name = name;
     this.parameters = Collections.unmodifiableList(new ArrayList<>(parameters));
     this.required = required;
     this.requireds = requireds;
-    this.handle = handle;
+    this.pendingRetry = pendingRetry;
     this.key = key;
   }
 
@@ -43,8 +34,8 @@ final class MethodViewBinding implements MemberViewBinding {
     return null == requireds ? new String[0] : requireds;
   }
 
-  public boolean isHandle() {
-    return handle;
+  public boolean pendingRetry() {
+    return pendingRetry;
   }
 
   public String getKey() {
@@ -58,4 +49,5 @@ final class MethodViewBinding implements MemberViewBinding {
   public boolean isRequired() {
     return required;
   }
+
 }

@@ -57,12 +57,12 @@ public class SimpleActivity extends Activity implements ViewBinder, Condition {
   private boolean retryFlag;
   private SimpleAdapter adapter;
 
-  @OnClick(value = {R.id.hello}, required = {"condition"}, handle = true, key = "hello") void sayHello() {
+  @OnClick(value = {R.id.hello}, required = {"condition"}, retry = true, key = "hello") void sayHello() {
     Toast.makeText(this, "Hello, views!", LENGTH_SHORT).show();
     ButterKnife.apply(headerViews, ALPHA_FADE);
   }
 
-  @OnLongClick(value = R.id.hello, required = {"condition"}, handle = true, key = "hello Long") boolean sayGetOffMe() {
+  @OnLongClick(value = R.id.hello, required = {"condition"}, retry = true, key = "hello Long") boolean sayGetOffMe() {
     Toast.makeText(this, "Let go of me!", LENGTH_SHORT).show();
     return true;
   }

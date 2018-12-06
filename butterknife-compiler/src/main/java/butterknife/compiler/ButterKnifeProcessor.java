@@ -1065,13 +1065,11 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   /** Returns the first duplicate element inside an array, null if there are no duplicates. */
   private static Integer findDuplicate(int[] array) {
     Set<Integer> seenElements = new LinkedHashSet<>();
-
     for (int element : array) {
       if (!seenElements.add(element)) {
         return element;
       }
     }
-
     return null;
   }
 
@@ -1147,11 +1145,11 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       requireds = (String[]) annotationRequired.invoke(annotation);
     }
 
-    // TODO isHandle
-    boolean handle = false;
-    Method annotationRetry = annotationClass.getDeclaredMethod("handle");
+    // TODO pendingRetry
+    boolean pendingRetry = false;
+    Method annotationRetry = annotationClass.getDeclaredMethod("retry");
     if (annotationRetry.getReturnType() == boolean.class) {
-      handle = (boolean) annotationRetry.invoke(annotation);
+      pendingRetry = (boolean) annotationRetry.invoke(annotation);
     }
 
     // TODO getKey
@@ -1302,7 +1300,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     MethodViewBinding binding = new MethodViewBinding(name,
-            Arrays.asList(parameters), requireds, handle, key, required);
+            Arrays.asList(parameters), requireds, pendingRetry, key, required);
     BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
     for (int id : ids) {
       QualifiedId qualifiedId = elementToQualifiedId(element, id);
