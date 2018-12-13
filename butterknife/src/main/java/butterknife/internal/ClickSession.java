@@ -109,8 +109,21 @@ public class ClickSession {
   public static ClickSession create(@NonNull final Object binder,
                                     @NonNull final Runnable action,
                                     String... requireds) {
+    return create(binder, null, action, requireds);
+  }
+
+  /**
+   * Create a click session from an action.
+   * @param action  runnable
+   * @return        ClickSession
+   */
+  public static ClickSession create(@NonNull final Object binder,
+                                    @Nullable final Object key,
+                                    @NonNull final Runnable action,
+                                    String... requireds) {
     Condition[] conditions = new Condition[requireds.length];
-    final ClickSession clickSession = new ClickSession(binder, null, null, conditions,
+    final ClickSession clickSession = new ClickSession(binder,
+            null, null != key ? key.toString() : null, conditions,
             new MethodExecutor(null) {
               @Nullable
               @Override
