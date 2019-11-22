@@ -1,6 +1,9 @@
 Butter Knife
 ============
 
+**Attention**: Development on this tool is winding down. Please consider switching to
+[view binding](https://developer.android.com/topic/libraries/view-binding) in the coming months.
+
 ![Logo](website/static/logo.png)
 
 Field and method binding for Android views which uses annotation processing to generate boilerplate
@@ -34,7 +37,7 @@ class ExampleActivity extends Activity {
 
 For documentation and additional information see [the website][3].
 
-__Remember: A butter knife is like [a dagger][1] only infinitely less sharp.__
+__Remember: A butter knife is like a [dagger][1], only infinitely less sharp.__
 
 
 
@@ -42,11 +45,22 @@ Download
 --------
 
 ```groovy
+android {
+  ...
+  // Butterknife requires Java 8.
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+  }
+}
+
 dependencies {
-  compile 'com.jakewharton:butterknife:8.8.1'
-  annotationProcessor 'com.jakewharton:butterknife-compiler:8.8.1'
+  implementation 'com.jakewharton:butterknife:10.2.0'
+  annotationProcessor 'com.jakewharton:butterknife-compiler:10.2.0'
 }
 ```
+
+If you are using Kotlin, replace `annotationProcessor` with `kapt`.
 
 Snapshots of the development version are available in [Sonatype's `snapshots` repository][snap].
 
@@ -61,9 +75,10 @@ To use Butter Knife in a library, add the plugin to your `buildscript`:
 buildscript {
   repositories {
     mavenCentral()
+    google()
    }
   dependencies {
-    classpath 'com.jakewharton:butterknife-gradle-plugin:8.8.1'
+    classpath 'com.jakewharton:butterknife-gradle-plugin:10.2.0'
   }
 }
 ```
@@ -106,7 +121,7 @@ License
 
 
 
- [1]: http://square.github.com/dagger/
+ [1]: https://dagger.dev/
  [2]: https://search.maven.org/remote_content?g=com.jakewharton&a=butterknife&v=LATEST
  [3]: http://jakewharton.github.com/butterknife/
  [snap]: https://oss.sonatype.org/content/repositories/snapshots/

@@ -9,6 +9,7 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import butterknife.Action;
 
 import androidx.annotation.NonNull;
 
@@ -24,26 +25,28 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import butterknife.OnItemClick;
 import butterknife.OnLongClick;
+import butterknife.ViewCollections;
+import com.example.butterknife.R;
+import static com.example.butterknife.R.id.titleTv;
+import java.util.List;
 import butterknife.ViewBinder;
 import butterknife.internal.ClickSession;
 
 import static android.widget.Toast.LENGTH_SHORT;
 
-public class SimpleActivity extends Activity implements ViewBinder, Condition {
+public class SimpleActivity extends Activity {
 
   private final static String TAG = SimpleActivity.class.getSimpleName();
 
-  private static final ButterKnife.Action<View> ALPHA_FADE = new ButterKnife.Action<View>() {
-    @Override public void apply(@NonNull View view, int index) {
-      AlphaAnimation alphaAnimation = new AlphaAnimation(0, 1);
-      alphaAnimation.setFillBefore(true);
-      alphaAnimation.setDuration(500);
-      alphaAnimation.setStartOffset(index * 100);
-      view.startAnimation(alphaAnimation);
-    }
+  private static final Action<View> ALPHA_FADE = (view, index) -> {
+    AlphaAnimation alphaAnimation = new AlphaAnimation(0, 1);
+    alphaAnimation.setFillBefore(true);
+    alphaAnimation.setDuration(500);
+    alphaAnimation.setStartOffset(index * 100);
+    view.startAnimation(alphaAnimation);
   };
 
-  @Bind(R.id.title) TextView title;
+  @Bind(titleTv) TextView title;
   @BindView(R.id.subtitle) TextView subtitle;
   @BindView(R.id.hello) Button hello;
   @BindView(R.id.list_of_things) ListView listOfThings;
@@ -53,14 +56,14 @@ public class SimpleActivity extends Activity implements ViewBinder, Condition {
   @BindString(R.string.by_jake_wharton) String byJakeWharton;
   @BindString(R.string.say_hello) String sayHello;
 
-  @BindViews({ R.id.title, R.id.subtitle, R.id.hello }) List<View> headerViews;
+  @BindViews({ titleTv, R.id.subtitle, R.id.hello }) List<View> headerViews;
 
   private boolean retryFlag;
   private SimpleAdapter adapter;
 
   @OnClick(value = {R.id.hello}, required = {"condition"}, retry = true, key = "hello") void sayHello() {
     Toast.makeText(this, "Hello, views!", LENGTH_SHORT).show();
-    ButterKnife.apply(headerViews, ALPHA_FADE);
+    ViewCollections.run(headerViews, ALPHA_FADE);
   }
 
   @OnLongClick(value = R.id.hello, required = {"condition"}, retry = true, key = "hello Long") boolean sayGetOffMe() {

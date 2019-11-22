@@ -1,5 +1,8 @@
 package butterknife.compiler;
 
+import butterknife.OnTouch;
+import butterknife.internal.ListenerClass;
+import butterknife.internal.ListenerMethod;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
@@ -10,7 +13,6 @@ import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.WildcardTypeName;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,30 +22,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
-
+import javax.annotation.Nullable;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
-import butterknife.OnTouch;
-import butterknife.internal.ListenerClass;
-import butterknife.internal.ListenerMethod;
-
 import static butterknife.compiler.ButterKnifeProcessor.ACTIVITY_TYPE;
-import static butterknife.compiler.ButterKnifeProcessor.BINDER_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.DIALOG_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.VIEW_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.isSubtypeOfType;
 import static com.google.auto.common.MoreElements.getPackage;
 import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.PROTECTED;
 import static javax.lang.model.element.Modifier.PUBLIC;
 
 /** A set of all the bindings requested by a single type. */
-final class BindingSet {
+final class BindingSet implements BindingInformationProvider {
   static final ClassName UTILS = ClassName.get("butterknife.internal", "Utils");
   private static final ClassName VIEW = ClassName.get("android.view", "View");
   private static final ClassName CONTEXT = ClassName.get("android.content", "Context");
@@ -58,15 +54,21 @@ final class BindingSet {
   static final ClassName BITMAP_FACTORY = ClassName.get("android.graphics", "BitmapFactory");
   static final ClassName CONTEXT_COMPAT =
       ClassName.get("androidx.core.content", "ContextCompat");
-  private static final ClassName VIEW_BINDER = ClassName.get("butterknife", "ViewBinder");
-  private static final ClassName CLICK_SESSION = ClassName.get("butterknife.internal", "ClickSession");
-  private static final ClassName METHOD_EXECUTOR = ClassName.get("butterknife.internal", "MethodExecutor");
-  private static final ClassName CONDITION = ClassName.get("butterknife.internal", "Condition");
+      ClassName.get("androidx.core.content", "ContextCompat");
+  private static final ClassName VIEW_BINDER =
+          ClassName.get("butterknife", "ViewBinder");
+  private static final ClassName CLICK_SESSION =
+          ClassName.get("butterknife.internal", "ClickSession");
+  private static final ClassName METHOD_EXECUTOR =
+          ClassName.get("butterknife.internal", "MethodExecutor");
+  private static final ClassName CONDITION =
+          ClassName.get("butterknife.internal", "Condition");
   static final ClassName ANIMATION_UTILS =
           ClassName.get("android.view.animation", "AnimationUtils");
 
   private final TypeName targetTypeName;
   private final ClassName bindingClassName;
+  private final TypeElement enclosingElement;
   private final boolean isFinal;
   private final boolean isBinder;
   private final boolean isView;
@@ -75,16 +77,19 @@ final class BindingSet {
   private final ImmutableList<ViewBinding> viewBindings;
   private final ImmutableList<FieldCollectionViewBinding> collectionBindings;
   private final ImmutableList<ResourceBinding> resourceBindings;
-  private final BindingSet parentBinding;
+  private final @Nullable BindingInformationProvider parentBinding;
 
-  private BindingSet(TypeName targetTypeName, ClassName bindingClassName, boolean isFinal,
-                     boolean isBinder, boolean isView, boolean isActivity, boolean isDialog,
-                     ImmutableList<ViewBinding> viewBindings,
-                     ImmutableList<FieldCollectionViewBinding> collectionBindings,
-                     ImmutableList<ResourceBinding> resourceBindings, BindingSet parentBinding) {
+  private BindingSet(
+      TypeName targetTypeName, ClassName bindingClassName, TypeElement enclosingElement,
+      boolean isBinder, boolean isFinal, boolean isView, boolean isActivity, boolean isDialog,
+      ImmutableList<ViewBinding> viewBindings,
+      ImmutableList<FieldCollectionViewBinding> collectionBindings,
+      ImmutableList<ResourceBinding> resourceBindings,
+      @Nullable BindingInformationProvider parentBinding) {
     this.isFinal = isFinal;
     this.targetTypeName = targetTypeName;
     this.bindingClassName = bindingClassName;
+    this.enclosingElement = enclosingElement;
     this.isBinder = isBinder;
     this.isView = isView;
     this.isActivity = isActivity;
@@ -95,21 +100,28 @@ final class BindingSet {
     this.parentBinding = parentBinding;
   }
 
+  @Override
+  public ClassName getBindingClassName() {
+    return bindingClassName;
+  }
+
   JavaFile brewJava(int sdk, boolean debuggable) {
-    return JavaFile.builder(bindingClassName.packageName(), createType(sdk, debuggable))
+    TypeSpec bindingConfiguration = createType(sdk, debuggable);
+    return JavaFile.builder(bindingClassName.packageName(), bindingConfiguration)
         .addFileComment("Generated code from Butter Knife. Do not modify!")
         .build();
   }
 
   private TypeSpec createType(int sdk, boolean debuggable) {
     TypeSpec.Builder result = TypeSpec.classBuilder(bindingClassName.simpleName())
-        .addModifiers(PUBLIC);
+        .addModifiers(PUBLIC)
+        .addOriginatingElement(enclosingElement);
     if (isFinal) {
       result.addModifiers(FINAL);
     }
 
     if (parentBinding != null) {
-      result.superclass(parentBinding.bindingClassName);
+      result.superclass(parentBinding.getBindingClassName());
     } else {
       result.addSuperinterface(UNBINDER);
     }
@@ -317,7 +329,10 @@ final class BindingSet {
       return;
     }
 
-    String fieldName = bindings.isBoundToRoot() ? "viewSource" : "view" + bindings.getId().value;
+    String fieldName =
+        bindings.isBoundToRoot()
+            ? "viewSource"
+            : "view" + Integer.toHexString(bindings.getId().value);
     result.addField(VIEW, fieldName, PRIVATE);
 
     // We only need to emit the null check if there are zero required bindings.
@@ -337,8 +352,9 @@ final class BindingSet {
         result.addField(listenerClassName, listenerField, PRIVATE);
       }
 
-      if (!VIEW_TYPE.equals(listenerClass.targetType())) {
-        unbindMethod.addStatement("(($T) $N).$N($N)", bestGuess(listenerClass.targetType()),
+      String targetType = listenerClass.targetType();
+      if (!VIEW_TYPE.equals(targetType)) {
+        unbindMethod.addStatement("(($T) $N).$N($N)", bestGuess(targetType),
             fieldName, removerOrSetter(listenerClass, requiresRemoval), listenerField);
       } else {
         unbindMethod.addStatement("$N.$N($N)", fieldName,
@@ -366,7 +382,7 @@ final class BindingSet {
   private void addViewBinding(MethodSpec.Builder result, ViewBinding binding, boolean debuggable) {
     if (binding.isSingleFieldBinding()) {
       // Optimize the common case where there's a single binding directly to a field.
-      FieldViewBinding fieldBinding = binding.getFieldBinding();
+      FieldViewBinding fieldBinding = requireNonNull(binding.getFieldBinding());
       CodeBlock.Builder builder = CodeBlock.builder()
           .add("target.$L = ", fieldBinding.getName());
 
@@ -387,8 +403,7 @@ final class BindingSet {
           builder.add(", $S", asHumanDescription(singletonList(fieldBinding)));
         }
         if (requiresCast) {
-          // builder.add(", $T.class", fieldBinding.getRawType());
-          builder.add(", $S", fieldBinding.getRawType().reflectionName());
+          builder.add(", $T.class", fieldBinding.getRawType());
         }
         builder.add(")");
       }
@@ -444,7 +459,7 @@ final class BindingSet {
     String fieldName = "viewSource";
     String bindName = "source";
     if (!binding.isBoundToRoot()) {
-      fieldName = "view" + binding.getId().value;
+      fieldName = "view" + Integer.toHexString(binding.getId().value);
       bindName = "view";
     }
     result.addStatement("$L = $N", fieldName, bindName);
@@ -464,16 +479,15 @@ final class BindingSet {
             .returns(bestGuess(method.returnType()));
         String[] parameterTypes = method.parameters();
         for (int i = 0, count = parameterTypes.length; i < count; i++) {
-          callbackMethod.addParameter(bestGuess(parameterTypes[i]), "p" + i, FINAL);
+          callbackMethod.addParameter(bestGuess(parameterTypes[i]), "p" + i);
         }
 
         boolean returned = false;
-        boolean hasReturnType = !"void".equals(method.returnType());
+        boolean hasReturnType = false;
         CodeBlock.Builder builder = CodeBlock.builder();
-
-        if (methodBindings.containsKey(method)) {
-          for (MethodViewBinding methodBinding : methodBindings.get(method)) {
-
+        Set<MethodViewBinding> methodViewBindings = methodBindings.get(method);
+        if (methodViewBindings != null) {
+          for (MethodViewBinding methodBinding : methodViewBindings) {
             boolean retry = methodBinding.pendingRetry();
             String[] requireds = methodBinding.getRequireds();
             String key = methodBinding.getKey();
@@ -502,7 +516,8 @@ final class BindingSet {
                     .addModifiers(PUBLIC);
             // TODO generate method block
             CodeBlock.Builder methodBlock = CodeBlock.builder();
-            if (hasReturnType) {
+            if (methodBinding.hasReturnValue()) {
+              hasReturnValue = true;
               methodBlock.add("Object result = ");
             }
             methodBlock.add("target.$L(", methodBinding.getName());
@@ -510,15 +525,15 @@ final class BindingSet {
             String[] listenerParameters = method.parameters();
             for (int i = 0, count = parameters.size(); i < count; i++) {
               if (i > 0) {
-                builder.add(", ");
+                methodBlock.add(", ");
               }
               Parameter parameter = parameters.get(i);
               int listenerPosition = parameter.getListenerPosition();
               if (parameter.requiresCast(listenerParameters[listenerPosition])) {
                 if (debuggable) {
                   methodBlock.add("$T.castParam(p$L, $S, $L, $S, $L, $T.class)", UTILS,
-                          listenerPosition, method.name(), listenerPosition, methodBinding.getName(), i,
-                          parameter.getType());
+                      listenerPosition, method.name(), listenerPosition, methodBinding.getName(), i,
+                      parameter.getType());
                 } else {
                   methodBlock.add("($T) p$L", parameter.getType(), listenerPosition);
                 }
@@ -606,8 +621,9 @@ final class BindingSet {
         result.addStatement("$L = $L", listenerField, callback.build());
       }
 
-      if (!VIEW_TYPE.equals(listener.targetType())) {
-        result.addStatement("(($T) $N).$L($L)", bestGuess(listener.targetType()), bindName,
+      String targetType = listener.targetType();
+      if (!VIEW_TYPE.equals(targetType)) {
+        result.addStatement("(($T) $N).$L($L)", bestGuess(targetType), bindName,
             listener.setter(), requiresRemoval ? listenerField : callback.build());
       } else {
         result.addStatement("$N.$L($L)", bindName, listener.setter(),
@@ -687,7 +703,7 @@ final class BindingSet {
             left = type.indexOf('<', left + 1);
           } while (left != -1);
           return ParameterizedTypeName.get(typeClassName,
-              typeArguments.toArray(new TypeName[0]));
+              typeArguments.toArray(new TypeName[typeArguments.size()]));
         }
         return ClassName.bestGuess(type);
     }
@@ -760,9 +776,10 @@ final class BindingSet {
   }
 
   /** True if this binding requires a view. Otherwise only a context is needed. */
-  private boolean constructorNeedsView() {
+  @Override
+  public boolean constructorNeedsView() {
     return hasViewBindings() //
-        || parentBinding != null && parentBinding.constructorNeedsView();
+        || (parentBinding != null && parentBinding.constructorNeedsView());
   }
 
   static boolean requiresCast(TypeName type) {
@@ -786,35 +803,43 @@ final class BindingSet {
       targetType = ((ParameterizedTypeName) targetType).rawType;
     }
 
-    String packageName = getPackage(enclosingElement).getQualifiedName().toString();
-    String className = enclosingElement.getQualifiedName().toString().substring(
-        packageName.length() + 1).replace('.', '$');
-    ClassName bindingClassName = ClassName.get(packageName, className + "_ViewBinding");
+    ClassName bindingClassName = getBindingClassName(enclosingElement);
 
     boolean isFinal = enclosingElement.getModifiers().contains(Modifier.FINAL);
-    return new Builder(targetType, bindingClassName, isFinal, isController, isView, isActivity, isDialog);
+    return new Builder(targetType, bindingClassName, enclosingElement, isFinal, isController, isView, isActivity,
+        isDialog);
+  }
+
+  static ClassName getBindingClassName(TypeElement typeElement) {
+    String packageName = getPackage(typeElement).getQualifiedName().toString();
+    String className = typeElement.getQualifiedName().toString().substring(
+            packageName.length() + 1).replace('.', '$');
+    return ClassName.get(packageName, className + "_ViewBinding");
   }
 
   static final class Builder {
     private final TypeName targetTypeName;
     private final ClassName bindingClassName;
+    private final TypeElement enclosingElement;
     private final boolean isFinal;
     private final boolean isBinder;
     private final boolean isView;
     private final boolean isActivity;
     private final boolean isDialog;
 
-    private BindingSet parentBinding;
+    private @Nullable BindingInformationProvider parentBinding;
 
     private final Map<Id, ViewBinding.Builder> viewIdMap = new LinkedHashMap<>();
     private final ImmutableList.Builder<FieldCollectionViewBinding> collectionBindings =
         ImmutableList.builder();
     private final ImmutableList.Builder<ResourceBinding> resourceBindings = ImmutableList.builder();
 
-    private Builder(TypeName targetTypeName, ClassName bindingClassName, boolean isFinal,
-                    boolean isBinder, boolean isView, boolean isActivity, boolean isDialog) {
+    private Builder(
+        TypeName targetTypeName, ClassName bindingClassName, TypeElement enclosingElement,
+        boolean isFinal, boolean isBinder, boolean isView, boolean isActivity, boolean isDialog) {
       this.targetTypeName = targetTypeName;
       this.bindingClassName = bindingClassName;
+      this.enclosingElement = enclosingElement;
       this.isFinal = isFinal;
       this.isBinder = isBinder;
       this.isView = isView;
@@ -847,11 +872,11 @@ final class BindingSet {
       resourceBindings.add(binding);
     }
 
-    void setParent(BindingSet parent) {
+    void setParent(BindingInformationProvider parent) {
       this.parentBinding = parent;
     }
 
-    String findExistingBindingName(Id id) {
+    @Nullable String findExistingBindingName(Id id) {
       ViewBinding.Builder builder = viewIdMap.get(id);
       if (builder == null) {
         return null;
@@ -877,10 +902,10 @@ final class BindingSet {
       for (ViewBinding.Builder builder : viewIdMap.values()) {
         viewBindings.add(builder.build());
       }
-      return new BindingSet(targetTypeName, bindingClassName, isFinal,
-              isBinder, isView, isActivity, isDialog,
-          viewBindings.build(), collectionBindings.build(), resourceBindings.build(),
-          parentBinding);
+      return new BindingSet(targetTypeName, bindingClassName, enclosingElement,
+              isFinal, isBinder, isView, isActivity, isDialog,
+              viewBindings.build(), collectionBindings.build(),
+          resourceBindings.build(), parentBinding);
     }
   }
 
@@ -894,4 +919,29 @@ final class BindingSet {
     return true;
   }
 
+}
+
+interface BindingInformationProvider {
+  boolean constructorNeedsView();
+  ClassName getBindingClassName();
+}
+
+final class ClasspathBindingSet implements BindingInformationProvider {
+  private boolean constructorNeedsView;
+  private ClassName className;
+
+  ClasspathBindingSet(boolean constructorNeedsView, TypeElement classElement) {
+    this.constructorNeedsView = constructorNeedsView;
+    this.className = BindingSet.getBindingClassName(classElement);
+  }
+
+  @Override
+  public ClassName getBindingClassName() {
+    return className;
+  }
+
+  @Override
+  public boolean constructorNeedsView() {
+    return constructorNeedsView;
+  }
 }
