@@ -21,11 +21,10 @@ public class OnLongClickTest {
         + "    return true;\n"
         + "  }\n"
 
-        + "public boolean condition() {return true;}\n"
-        + "@Override public void postAction(View view, String clazz, String method, String key) {}\n"
-        + "@Override public View getView() {return null;}\n"
+        +    "public boolean condition() {return true;}\n"
+        +    "@Override public View getView() {return null;}\n"
 
-            + "}"
+        + "}"
     );
 
     JavaFileObject bindingSource = JavaFileObjects.forSourceString("test/Test_ViewBinding", ""
@@ -50,13 +49,9 @@ public class OnLongClickTest {
         + "    view.setOnLongClickListener(new View.OnLongClickListener() {\n"
         + "      @Override\n"
         + "      public boolean onLongClick(View p0) {\n"
-        + "        if (!ViewBinder.class.isInstance(target)) {\n"
-        + "          throw new RuntimeException(\"Target must be implements from ViewBinder\");\n"
-        + "        }\n"
         + "        if (!target.condition()) {\n"
         + "          return false;\n"
         + "        }\n"
-        + "        target.postAction(p0, \"test.Test\", \"doStuff\", \"Key\");\n"
         + "        return target.doStuff();\n"
         + "      }\n"
         + "    });\n"

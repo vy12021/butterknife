@@ -1,14 +1,13 @@
 package butterknife;
 
-import androidx.annotation.NonNull;
 import android.view.View;
+
+import androidx.annotation.NonNull;
 
 import butterknife.internal.ClickSession;
 
 /**
  * The target interface to view Binding.
- *
- * @version 1.0
  *
  * Created by TeslaLiu on 2017/7/15.
  */
@@ -31,17 +30,5 @@ public interface ViewBinder {
      */
     @NonNull
     View getView();
-
-    /**
-     * post Action
-     * @param view      View
-     * @param clazz     target class
-     * @param method    click method
-     * @param key       value of the annotation field key
-     * @deprecated instead of {@link #onPreClick(ClickSession)}
-     * and {@link #onPostClick(ClickSession)}
-     */
-    @Deprecated
-    void postAction(View view, String clazz, String method, String key);
 
 }

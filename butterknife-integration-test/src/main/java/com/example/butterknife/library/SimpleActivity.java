@@ -2,7 +2,6 @@ package com.example.butterknife.library;
 
 import android.app.Activity;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
@@ -10,6 +9,8 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 
 import com.example.butterknife.R;
 
@@ -84,11 +85,6 @@ public class SimpleActivity extends Activity implements ViewBinder, Condition {
 
     adapter = new SimpleAdapter(this);
     listOfThings.setAdapter(adapter);
-  }
-
-  @Override
-  public void postAction(View view, String clazz, String method, String key) {
-    Log.e(TAG, clazz + "." + method + ": " + key);
   }
 
   @Override

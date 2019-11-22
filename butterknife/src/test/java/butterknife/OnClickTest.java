@@ -26,7 +26,6 @@ public class OnClickTest {
             + "public boolean condition(ClickSession session) {return true;}\n"
             + "public void onPreClick(ClickSession session) {}\n"
             + "public void onPostClick(ClickSession session) {}\n"
-            + "@Override public void postAction(View view, String clazz, String method, String key) {}\n"
             + "@Override public View getView() {return null;}\n"
 
         + "}"
@@ -63,7 +62,6 @@ public class OnClickTest {
         + "          @Override\n"
         + "          public Object execute() {\n"
         + "            target.doStuff();\n"
-        + "            target.postAction(p0, \"test.Test\", \"doStuff\", \"Key\");\n"
         + "            return null;\n"
         + "          }\n"
         + "        };\n"

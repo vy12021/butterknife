@@ -527,16 +527,7 @@ final class BindingSet {
               }
             }
             methodBlock.add(");\n");
-            // TODO generate postAction() method, will removed in the future.
-            if (null != key && !"".equals(key)) {
-              if (!isBinder) {
-                throw new RuntimeException(
-                        String.format("Target must be implements from %s)",
-                                VIEW_BINDER.reflectionName()));
-              }
-              methodBlock.addStatement("target.postAction(p0, $S, $S, $S)",
-                      targetTypeName, methodBinding.getName(), key);
-            }
+
             if (hasReturnType) {
               methodBlock.addStatement("return result");
             } else {
@@ -696,7 +687,7 @@ final class BindingSet {
             left = type.indexOf('<', left + 1);
           } while (left != -1);
           return ParameterizedTypeName.get(typeClassName,
-              typeArguments.toArray(new TypeName[typeArguments.size()]));
+              typeArguments.toArray(new TypeName[0]));
         }
         return ClassName.bestGuess(type);
     }
