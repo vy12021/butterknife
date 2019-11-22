@@ -2,6 +2,7 @@ bin
 gen
 out
 lib
+build
 
 .idea
 *.iml
