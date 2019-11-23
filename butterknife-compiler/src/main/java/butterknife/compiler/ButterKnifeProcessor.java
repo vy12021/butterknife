@@ -1,5 +1,61 @@
 package butterknife.compiler;
 
+import com.google.auto.common.SuperficialValidation;
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.TypeName;
+import com.sun.source.util.Trees;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.TreeScanner;
+
+import net.ltgt.gradle.incap.IncrementalAnnotationProcessor;
+import net.ltgt.gradle.incap.IncrementalAnnotationProcessorType;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.annotation.Nullable;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Filer;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.Types;
+import javax.tools.Diagnostic.Kind;
+
+import butterknife.Bind;
 import butterknife.BindAnim;
 import butterknife.BindArray;
 import butterknife.BindBitmap;
@@ -28,57 +84,6 @@ import butterknife.Optional;
 import butterknife.compiler.FieldTypefaceBinding.TypefaceStyles;
 import butterknife.internal.ListenerClass;
 import butterknife.internal.ListenerMethod;
-import com.google.auto.common.SuperficialValidation;
-import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.squareup.javapoet.JavaFile;
-import com.squareup.javapoet.TypeName;
-import com.sun.source.util.Trees;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.TreeScanner;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import javax.annotation.Nullable;
-import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.Filer;
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.annotation.processing.Processor;
-import javax.annotation.processing.RoundEnvironment;
-import javax.lang.model.SourceVersion;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.Name;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.TypeVariable;
-import javax.lang.model.util.Types;
-import javax.tools.Diagnostic.Kind;
-import net.ltgt.gradle.incap.IncrementalAnnotationProcessor;
-import net.ltgt.gradle.incap.IncrementalAnnotationProcessorType;
 
 import static butterknife.internal.Constants.NO_RES_ID;
 import static java.util.Objects.requireNonNull;
@@ -470,6 +475,64 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     return false;
+  }
+
+  private void parseBind(Element element, Map<TypeElement, BindingSet.Builder> builderMap,
+                         Set<TypeElement> erasedTargetNames) {
+    TypeElement enclosingElement = (TypeElement) element.getEnclosingElement();
+
+    // Start by verifying common generated code restrictions.
+    boolean hasError = isInaccessibleViaGeneratedCode(Bind.class, "fields", element)
+            || isBindingInWrongPackage(Bind.class, element);
+
+    // Verify that the target type extends from View.
+    TypeMirror elementType = element.asType();
+    if (elementType.getKind() == TypeKind.TYPEVAR) {
+      TypeVariable typeVariable = (TypeVariable) elementType;
+      elementType = typeVariable.getUpperBound();
+    }
+    Name qualifiedName = enclosingElement.getQualifiedName();
+    Name simpleName = element.getSimpleName();
+    if (!isSubtypeOfType(elementType, VIEW_TYPE) && !isInterface(elementType)) {
+      if (elementType.getKind() == TypeKind.ERROR) {
+        note(element, "@%s field with unresolved type (%s) "
+                        + "must elsewhere be generated as a View or interface. (%s.%s)",
+                Bind.class.getSimpleName(), elementType, qualifiedName, simpleName);
+      } else {
+        error(element, "@%s fields must extend from View or be an interface. (%s.%s)",
+                Bind.class.getSimpleName(), qualifiedName, simpleName);
+        hasError = true;
+      }
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    // Assemble information on the field.
+    int id = element.getAnnotation(Bind.class).value();
+    BindingSet.Builder builder = builderMap.get(enclosingElement);
+    Id resourceId = elementToId(element, Bind.class, id);
+    if (builder != null) {
+      String existingBindingName = builder.findExistingBindingName(resourceId);
+      if (existingBindingName != null) {
+        error(element, "Attempt to use @%s for an already bound ID %d on '%s'. (%s.%s)",
+                Bind.class.getSimpleName(), id, existingBindingName,
+                enclosingElement.getQualifiedName(), element.getSimpleName());
+        return;
+      }
+    } else {
+      builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
+    }
+
+    String name = simpleName.toString();
+    TypeName type = TypeName.get(elementType);
+    boolean required = isFieldRequired(element);
+
+    builder.addField(resourceId, new FieldViewBinding(name, type, required));
+
+    // Add the type-erased version to the valid binding targets set.
+    erasedTargetNames.add(enclosingElement);
   }
 
   private void parseBindView(Element element, Map<TypeElement, BindingSet.Builder> builderMap,
@@ -1094,10 +1157,10 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     // TODO pendingRetry
-    boolean pendingRetry = false;
+    boolean retry = false;
     Method annotationRetry = annotationClass.getDeclaredMethod("retry");
     if (annotationRetry.getReturnType() == boolean.class) {
-      pendingRetry = (boolean) annotationRetry.invoke(annotation);
+      retry = (boolean) annotationRetry.invoke(annotation);
     }
 
     // TODO getKey
@@ -1250,7 +1313,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     MethodViewBinding binding = new MethodViewBinding(name,
-            Arrays.asList(parameters), requireds, pendingRetry, key, required, hasReturnValue);
+            Arrays.asList(parameters), requireds, retry, key, required, hasReturnValue);
     BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
     Map<Integer, Id> resourceIds = elementToIds(element, annotationClass, ids);
     for (Map.Entry<Integer, Id> entry : resourceIds.entrySet()) {
@@ -1521,8 +1584,10 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
 
     @Override public void visitLiteral(JCTree.JCLiteral jcLiteral) {
       try {
-        int value = (Integer) jcLiteral.value;
-        resourceIds.put(value, new Id(value));
+        if (jcLiteral.type.isNumeric()) {
+          int value = (Integer) jcLiteral.value;
+          resourceIds.put(value, new Id(value));
+        }
       } catch (Exception ignored) { }
     }
 

@@ -91,7 +91,7 @@ public final class ButterKnife {
    * BindView annotated fields and methods in the specified {@link Activity}. The current content
    * view is used as the view root.
    *
-   * @param target Target activity for view binding.
+   * @param target Target component for view binding.
    */
   @NonNull @UiThread
   public static Unbinder bind(@NonNull ViewBinder target) {
@@ -107,7 +107,7 @@ public final class ButterKnife {
   @NonNull @UiThread
   public static Unbinder bind(@NonNull ViewBinder target, View view) {
     View sourceView = null != view ? view : target.getView();
-    return bind(target, sourceView);
+    return bind((Object) target, sourceView);
   }
 
   /**

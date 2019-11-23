@@ -1,5 +1,7 @@
 package com.example.butterknife.library;
 
+import android.app.Activity;
+
 import androidx.test.rule.ActivityTestRule;
 import butterknife.ButterKnife;
 import butterknife.Unbinder;
@@ -16,7 +18,7 @@ public final class SimpleActivityTest {
   @Test public void verifyContentViewBinding() {
     SimpleActivity activity = activityRule.getActivity();
 
-    Unbinder unbinder = ButterKnife.bind(activity);
+    Unbinder unbinder = ButterKnife.bind((Activity) activity);
     verifySimpleActivityBound(activity);
     unbinder.unbind();
     verifySimpleActivityUnbound(activity);

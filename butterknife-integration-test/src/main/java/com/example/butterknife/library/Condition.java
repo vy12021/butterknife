@@ -11,7 +11,6 @@ import butterknife.internal.ClickSession;
 
 public interface Condition {
 
-    boolean condition();
     boolean condition(ClickSession session);
 
 }

@@ -9,7 +9,6 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
-import butterknife.Action;
 
 import androidx.annotation.NonNull;
 
@@ -17,6 +16,7 @@ import com.example.butterknife.R;
 
 import java.util.List;
 
+import butterknife.Action;
 import butterknife.Bind;
 import butterknife.BindString;
 import butterknife.BindView;
@@ -25,16 +25,13 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import butterknife.OnItemClick;
 import butterknife.OnLongClick;
-import butterknife.ViewCollections;
-import com.example.butterknife.R;
-import static com.example.butterknife.R.id.titleTv;
-import java.util.List;
 import butterknife.ViewBinder;
+import butterknife.ViewCollections;
 import butterknife.internal.ClickSession;
 
 import static android.widget.Toast.LENGTH_SHORT;
 
-public class SimpleActivity extends Activity {
+public class SimpleActivity extends Activity implements ViewBinder, Condition {
 
   private final static String TAG = SimpleActivity.class.getSimpleName();
 
@@ -46,7 +43,7 @@ public class SimpleActivity extends Activity {
     view.startAnimation(alphaAnimation);
   };
 
-  @Bind(titleTv) TextView title;
+  @Bind(R.id.titleTv) TextView title;
   @BindView(R.id.subtitle) TextView subtitle;
   @BindView(R.id.hello) Button hello;
   @BindView(R.id.list_of_things) ListView listOfThings;
@@ -56,22 +53,25 @@ public class SimpleActivity extends Activity {
   @BindString(R.string.by_jake_wharton) String byJakeWharton;
   @BindString(R.string.say_hello) String sayHello;
 
-  @BindViews({ titleTv, R.id.subtitle, R.id.hello }) List<View> headerViews;
+  @BindViews({ R.id.titleTv, R.id.subtitle, R.id.hello }) List<View> headerViews;
 
   private boolean retryFlag;
   private SimpleAdapter adapter;
 
-  @OnClick(value = {R.id.hello}, required = {"condition"}, retry = true, key = "hello") void sayHello() {
+  @OnClick(value = {R.id.titleTv}, required = {"condition"}, retry = true, key = "hello")
+  void nonono() {
     Toast.makeText(this, "Hello, views!", LENGTH_SHORT).show();
     ViewCollections.run(headerViews, ALPHA_FADE);
   }
 
-  @OnLongClick(value = R.id.hello, required = {"condition"}, retry = true, key = "hello Long") boolean sayGetOffMe() {
+  @OnLongClick(value = R.id.hello, required = {"condition"}, retry = true, key = "hello Long")
+  boolean sayGetOffMe() {
     Toast.makeText(this, "Let go of me!", LENGTH_SHORT).show();
     return true;
   }
 
-  @OnItemClick(R.id.list_of_things) void onItemClick(int position) {
+  @OnItemClick(R.id.list_of_things)
+  void onItemClick(int position) {
     Toast.makeText(this, "You clicked: " + adapter.getItem(position), LENGTH_SHORT).show();
   }
 
@@ -107,21 +107,12 @@ public class SimpleActivity extends Activity {
   }
 
   @Override
-  public boolean condition() {
-    Log.e(TAG, "Click to test condition: ");
-    return retryFlag;
-  }
-
-  @Override
   public boolean condition(final ClickSession session) {
     Log.e(TAG, "Click to test condition session: " + retryFlag);
     if (!retryFlag) {
-      getView().postDelayed(new Runnable() {
-        @Override
-        public void run() {
-          retryFlag = !retryFlag;
-          session.execute(true);
-        }
+      getView().postDelayed(() -> {
+        retryFlag = !retryFlag;
+        session.execute(true);
       }, 3000);
     }
     return retryFlag;

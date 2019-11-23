@@ -22,12 +22,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+
 import javax.annotation.Nullable;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
 import static butterknife.compiler.ButterKnifeProcessor.ACTIVITY_TYPE;
+import static butterknife.compiler.ButterKnifeProcessor.BINDER_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.DIALOG_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.VIEW_TYPE;
 import static butterknife.compiler.ButterKnifeProcessor.isSubtypeOfType;
@@ -36,6 +39,7 @@ import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.PROTECTED;
 import static javax.lang.model.element.Modifier.PUBLIC;
 
 /** A set of all the bindings requested by a single type. */
@@ -53,7 +57,6 @@ final class BindingSet implements BindingInformationProvider {
   private static final ClassName UNBINDER = ClassName.get("butterknife", "Unbinder");
   static final ClassName BITMAP_FACTORY = ClassName.get("android.graphics", "BitmapFactory");
   static final ClassName CONTEXT_COMPAT =
-      ClassName.get("androidx.core.content", "ContextCompat");
       ClassName.get("androidx.core.content", "ContextCompat");
   private static final ClassName VIEW_BINDER =
           ClassName.get("butterknife", "ViewBinder");
@@ -81,7 +84,7 @@ final class BindingSet implements BindingInformationProvider {
 
   private BindingSet(
       TypeName targetTypeName, ClassName bindingClassName, TypeElement enclosingElement,
-      boolean isBinder, boolean isFinal, boolean isView, boolean isActivity, boolean isDialog,
+      boolean isFinal, boolean isBinder, boolean isView, boolean isActivity, boolean isDialog,
       ImmutableList<ViewBinding> viewBindings,
       ImmutableList<FieldCollectionViewBinding> collectionBindings,
       ImmutableList<ResourceBinding> resourceBindings,
@@ -442,7 +445,7 @@ final class BindingSet implements BindingInformationProvider {
   }
 
   private void addMethodBindings(MethodSpec.Builder result, ViewBinding binding,
-      boolean debuggable) {
+                                 boolean debuggable) {
     Map<ListenerClass, Map<ListenerMethod, Set<MethodViewBinding>>> classMethodBindings =
         binding.getMethodBindings();
     if (classMethodBindings.isEmpty()) {
@@ -458,6 +461,7 @@ final class BindingSet implements BindingInformationProvider {
     // Add the view reference to the binding.
     String fieldName = "viewSource";
     String bindName = "source";
+
     if (!binding.isBoundToRoot()) {
       fieldName = "view" + Integer.toHexString(binding.getId().value);
       bindName = "view";
@@ -483,7 +487,7 @@ final class BindingSet implements BindingInformationProvider {
         }
 
         boolean returned = false;
-        boolean hasReturnType = false;
+        boolean hasReturnValue = false;
         CodeBlock.Builder builder = CodeBlock.builder();
         Set<MethodViewBinding> methodViewBindings = methodBindings.get(method);
         if (methodViewBindings != null) {
@@ -494,15 +498,14 @@ final class BindingSet implements BindingInformationProvider {
             // Condition[] conditions = new Condition[requireds.length];
             builder.addStatement("$T[] conditions = new $T[$L]", CONDITION, CONDITION, requireds.length);
 
-            // TODO generate MethodExecutor
-            /*MethodExecutor executor = new MethodExecutor() {
+            /*MethodExecutor executor = new MethodExecutor("method") {
               @Override
               protected Object execute() {
                 if (hasReturn) {
                   Object result = target.Method(View...);
                   return result;
                 } else {
-                  target.Method(View...);
+                  target.method(View...);
                   return null;
                 }
               }
@@ -513,7 +516,7 @@ final class BindingSet implements BindingInformationProvider {
             MethodSpec.Builder methodExecute = MethodSpec.methodBuilder("execute")
                     .addAnnotation(Override.class)
                     .returns(Object.class)
-                    .addModifiers(PUBLIC);
+                    .addModifiers(PROTECTED);
             // TODO generate method block
             CodeBlock.Builder methodBlock = CodeBlock.builder();
             if (methodBinding.hasReturnValue()) {
@@ -543,7 +546,7 @@ final class BindingSet implements BindingInformationProvider {
             }
             methodBlock.add(");\n");
 
-            if (hasReturnType) {
+            if (hasReturnValue) {
               methodBlock.addStatement("return result");
             } else {
               methodBlock.addStatement("return null");
@@ -565,31 +568,27 @@ final class BindingSet implements BindingInformationProvider {
                 }
               };
             }*/
-            if (requireds.length > 0) {
-              String required;
-              for (int i = 0; i < requireds.length; i++) {
-                if (checkJavaSymbol(required = requireds[i])) {
-                  TypeSpec.Builder typeCondition = TypeSpec.anonymousClassBuilder("$S", required)
-                          .superclass(CONDITION);
-                  MethodSpec.Builder methodRequired = MethodSpec.methodBuilder("require")
-                          .addAnnotation(Override.class)
-                          .addModifiers(PROTECTED)
-                          .returns(boolean.class);
-                  methodRequired.addStatement("return target.$L(session)", required);
-                  typeCondition.addMethod(methodRequired.build());
-                  builder.addStatement("conditions[$L] = $L", i, typeCondition.build());
-                } else {
-                  throw new RuntimeException("Condition\" "
-                        + required + "\" must be a valid java symbol");
-                }
+            String required;
+            for (int i = 0; i < requireds.length; i++) {
+              if (checkJavaSymbol(required = requireds[i])) {
+                TypeSpec.Builder typeCondition = TypeSpec.anonymousClassBuilder("$S", required)
+                        .superclass(CONDITION);
+                MethodSpec.Builder methodRequired = MethodSpec.methodBuilder("require")
+                        .addAnnotation(Override.class)
+                        .addModifiers(PROTECTED)
+                        .returns(boolean.class);
+                methodRequired.addStatement("return target.$L(session)", required);
+                typeCondition.addMethod(methodRequired.build());
+                builder.addStatement("conditions[$L] = $L", i, typeCondition.build());
+              } else {
+                throw new RuntimeException("Condition\" "
+                      + required + "\" must be a valid java symbol");
               }
             }
 
-            // TODO Notify the click session before execute.
             if (isBinder) {
               builder.addStatement("target.onPreClick(session)");
             }
-            // TODO Do real action
             // session.execute(true);
             builder.addStatement("boolean result = session.execute(true)");
             if (isBinder) {
@@ -597,7 +596,7 @@ final class BindingSet implements BindingInformationProvider {
               builder.addStatement("target.onPostClick(session)");
               builder.endControlFlow();
             }
-            if (hasReturnType && !returned) {
+            if (hasReturnValue && !returned) {
               builder.beginControlFlow("if (result)");
               builder.addStatement("return ($L) session.executor.getReturnedValue()",
                       method.returnType());
@@ -703,7 +702,7 @@ final class BindingSet implements BindingInformationProvider {
             left = type.indexOf('<', left + 1);
           } while (left != -1);
           return ParameterizedTypeName.get(typeClassName,
-              typeArguments.toArray(new TypeName[typeArguments.size()]));
+              typeArguments.toArray(new TypeName[0]));
         }
         return ClassName.bestGuess(type);
     }
