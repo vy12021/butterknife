@@ -111,8 +111,8 @@ public class ClickSession {
                                     @NonNull final Runnable action,
                                     String... requireds) {
     Condition[] conditions = new Condition[requireds.length];
-    final ClickSession clickSession = new ClickSession(
-            binder, null, null == key ? null : key.toString(), conditions,
+    final ClickSession clickSession = new ClickSession(binder, null,
+            null == key ? null : key.toString(), conditions,
             new MethodExecutor(null) {
               @Nullable
               @Override
