@@ -98,7 +98,7 @@ public class ClickSession {
   public static ClickSession create(@NonNull final ViewBinder binder,
                                     @NonNull final Runnable action,
                                     String... requireds) {
-    return create((Object) binder, action, requireds);
+    return create(binder, null, action, requireds);
   }
 
   /**
@@ -107,10 +107,12 @@ public class ClickSession {
    * @return        ClickSession
    */
   public static ClickSession create(@NonNull final Object binder,
+                                    @Nullable Object key,
                                     @NonNull final Runnable action,
                                     String... requireds) {
     Condition[] conditions = new Condition[requireds.length];
-    final ClickSession clickSession = new ClickSession(binder, null, null, conditions,
+    final ClickSession clickSession = new ClickSession(binder, null,
+            null == key ? null : key.toString(), conditions,
             new MethodExecutor(null) {
               @Nullable
               @Override

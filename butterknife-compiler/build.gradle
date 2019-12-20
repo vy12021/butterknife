@@ -1,3 +1,5 @@
+import org.gradle.internal.jvm.Jvm
+
 apply plugin: 'java-library'
 apply plugin: 'checkstyle'
 
@@ -10,7 +12,7 @@ dependencies {
   implementation deps.guava
   api deps.javapoet
   compileOnly deps.auto.service
-  compileOnly files(org.gradle.internal.jvm.Jvm.current().getToolsJar())
+  compileOnly files(Jvm.current().getToolsJar())
 
   api deps.incap.runtime
   compileOnly deps.incap.processor

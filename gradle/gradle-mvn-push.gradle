@@ -26,12 +26,12 @@ def isReleaseBuild() {
 
 def getReleaseRepositoryUrl() {
   return hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
-      : "http://nexus3.dou-pai.com/repository/android-snapshot/"
+      : "http://nexus.bhbcode.com/repository/android-snapshot/"
 }
 
 def getSnapshotRepositoryUrl() {
   return hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
-      : "http://nexus3.dou-pai.com/repository/android-snapshot/"
+      : "http://nexus.bhbcode.com/repository/android-snapshot/"
 }
 
 def getRepositoryUsername() {
