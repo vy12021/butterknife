@@ -483,7 +483,7 @@ final class BindingSet implements BindingInformationProvider {
             .returns(bestGuess(method.returnType()));
         String[] parameterTypes = method.parameters();
         for (int i = 0, count = parameterTypes.length; i < count; i++) {
-          callbackMethod.addParameter(bestGuess(parameterTypes[i]), "p" + i);
+          callbackMethod.addParameter(bestGuess(parameterTypes[i]), "p" + i, FINAL);
         }
 
         boolean returned = false;
@@ -894,6 +894,15 @@ final class BindingSet implements BindingInformationProvider {
         viewIdMap.put(id, viewId);
       }
       return viewId;
+    }
+
+    boolean isViewIdLiteral(Id id) {
+      ViewBinding.Builder viewId = viewIdMap.get(id);
+      if (viewId == null) {
+        return id.isLiteral();
+      } else {
+        return false;
+      }
     }
 
     BindingSet build() {

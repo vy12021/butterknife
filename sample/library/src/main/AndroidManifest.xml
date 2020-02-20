@@ -1,1 +1,10 @@
-<manifest package="com.example.butterknife.library"/>
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.butterknife.librarys">
+    <application>
+        <activity android:name="com.example.butterknife.library.SimpleKotlin">
+
+        </activity>
+    </application>
+</manifest>

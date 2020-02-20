@@ -3,25 +3,34 @@ package com.example.butterknife.library;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+
+import com.example.butterknife.librarys.R;
+import com.example.butterknife.librarys.R2;
+
+import java.util.List;
+
+import butterknife.Action;
+import butterknife.Bind;
 import butterknife.BindView;
 import butterknife.BindViews;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import butterknife.OnItemClick;
 import butterknife.OnLongClick;
-import java.util.List;
+import butterknife.ViewCollections;
 
 import static android.widget.Toast.LENGTH_SHORT;
 
 public class SimpleActivity extends Activity {
-  private static final ButterKnife.Action<View> ALPHA_FADE = new ButterKnife.Action<View>() {
+  private static final Action<View> ALPHA_FADE = new Action<View>() {
     @Override public void apply(@NonNull View view, int index) {
       AlphaAnimation alphaAnimation = new AlphaAnimation(0, 1);
       alphaAnimation.setFillBefore(true);
@@ -32,8 +41,8 @@ public class SimpleActivity extends Activity {
   };
 
   @BindView(R2.id.title) TextView title;
-  // @Bind(R2.id.subtitle) TextView subtitle;
-  @BindView(R2.id.hello) Button hello;
+  @Bind(R2.id.subtitle) TextView subtitle;
+  // @BindView(R2.id.hello) Button hello;
   @BindView(R2.id.list_of_things) ListView listOfThings;
   @BindView(R2.id.footer) TextView footer;
 
@@ -43,7 +52,7 @@ public class SimpleActivity extends Activity {
 
   @OnClick(R2.id.hello) void sayHello() {
     Toast.makeText(this, "Hello, views!", LENGTH_SHORT).show();
-    ButterKnife.apply(headerViews, ALPHA_FADE);
+    ViewCollections.run(headerViews, ALPHA_FADE);
   }
 
   @OnLongClick(R2.id.hello) boolean sayGetOffMe() {
@@ -65,7 +74,7 @@ public class SimpleActivity extends Activity {
     title.setText("Butter Knife");
     // subtitle.setText("Field and method binding for Android views.");
     footer.setText("by Jake Wharton");
-    hello.setText("Say Hello");
+    // hello.setText("Say Hello");
 
     adapter = new SimpleAdapter(this);
     listOfThings.setAdapter(adapter);

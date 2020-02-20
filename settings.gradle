@@ -7,7 +7,7 @@ include ':butterknife-lint'
 include ':butterknife-reflect'
 include ':butterknife-runtime'
 
-//include ':sample:app'
-//include ':sample:library'
+include ':sample:app'
+include ':sample:library'
 
 rootProject.name = 'butterknife-parent'

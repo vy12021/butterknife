@@ -5,6 +5,8 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.sun.tools.javac.code.Symbol;
 
+import java.util.regex.Pattern;
+
 /**
  * Represents an ID of an Android resource.
  */
@@ -48,4 +50,10 @@ final class Id {
   @Override public String toString() {
     throw new UnsupportedOperationException("Please use value or code explicitly");
   }
+
+  boolean isLiteral() {
+    Pattern pattern = Pattern.compile("[\\d]*");
+    return pattern.matcher(code.toString()).matches();
+  }
+
 }
