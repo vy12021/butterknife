@@ -1110,7 +1110,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       } catch (Exception e) {
         StringWriter stackTrace = new StringWriter();
         e.printStackTrace(new PrintWriter(stackTrace));
-
         error(element, "Unable to generate view binder for @%s.\n\n%s",
             annotationClass.getSimpleName(), stackTrace.toString());
       }
@@ -1494,27 +1493,55 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     processingEnv.getMessager().printMessage(kind, message, element);
   }
 
-  private Symbol getFileElement(Symbol element) {
+  private Symbol getClassElement(Symbol element) {
     if (element.type instanceof Type.ClassType) {
       return element;
     } else if (null != element.owner) {
-      return getFileElement(element.owner);
+      return getClassElement(element.owner);
     }
     return null;
   }
 
   private String findR2Package(RoundEnvironment env, Element element) {
+    Symbol symbol = getClassElement((Symbol) element);
+
+    if (null == symbol || null == symbol.getQualifiedName()) {
+      warn(element, "findR2Package: null.");
+      return null;
+    }
+
+    String qualifiedName = symbol.getQualifiedName().toString();
     r2PackageScanner.reset();
-    Symbol symbol = getFileElement((Symbol) element);
-    for (Element rootEle : env.getRootElements()) {
-      if (rootEle.toString().equals(symbol.getQualifiedName().toString())) {
-        JCTree tree = (JCTree) trees.getTree(rootEle);
+    for (Element clsElement : env.getRootElements()) {
+      if (clsElement.toString().equals(qualifiedName)) {
+        JCTree tree = (JCTree) trees.getTree(clsElement);
         if (tree != null) {
           tree.accept(r2PackageScanner);
         }
         break;
       }
     }
+
+    if (null == r2PackageScanner.packageName) {
+      warn(element, "findR2Package: rescan.");
+      String qualified, packageName;
+      for (Element clsElement : env.getRootElements()) {
+        qualified = clsElement.toString();
+        warn(element, "clsElement: %s", qualified);
+        if (!qualified.endsWith(".R2")) {
+          continue;
+        }
+
+        warn(element, "R2: %s", qualified);
+        packageName = qualified.substring(0, qualified.length() - 3);
+        if (qualifiedName.contains(packageName)) {
+          warn(element, "packageName: %s", qualified);
+          return packageName;
+        }
+      }
+    }
+
+    warn(element, "findR2Package: r2PackageScanner.packageName: %s.", r2PackageScanner.packageName);
     return r2PackageScanner.packageName;
   }
 
@@ -1524,11 +1551,8 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     String r2Package = findR2Package(env, element);
-    if (null == r2Package) {
-      return Collections.emptyMap();
-    }
-
     String rClassStub = r2Package + ".R2";
+    warn(element, "findR2SymbolIds: %s", rClassStub);
     r2Scanner.reset();
     for (Element clsElement : env.getRootElements()) {
       if (clsElement.toString().equals(rClassStub)) {
@@ -1578,6 +1602,9 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     // Every value looked up should have an Id
     for (int value : values) {
       Id id = resourceIds.get(value);
+      Id _id = r2Ids.get(value);
+      warn(element, "elementToIds: id: %s, symbol: %s",
+              null == id ? "null" : id.code.toString(), null == _id ? "null" : _id.code.toString());
       if ((null == id || id.isLiteral()) && null != (id = r2Ids.get(value))) {
         resourceIds.put(value, id);
       } else {
@@ -1666,13 +1693,21 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
   }
 
-  private static class R2PackageScanner extends TreeScanner {
+  private class R2PackageScanner extends TreeScanner {
 
     String packageName;
+    Element element;
+
+    @Override
+    public void visitImport(JCTree.JCImport jcImport) {
+      super.visitImport(jcImport);
+      warn(element, "visitImport: %s", jcImport.toString());
+    }
 
     @Override
     public void visitSelect(JCTree.JCFieldAccess jcFieldAccess) {
-      super.visitSelect(jcFieldAccess);
+      // super.visitSelect(jcFieldAccess);
+      // warn(element, "visitSelect: %s", jcFieldAccess.toString());
       if ("R2".equals(jcFieldAccess.name.toString())) {
         String qualifiedName = jcFieldAccess.toString();
         packageName = qualifiedName.substring(0, qualifiedName.length() - 3);
@@ -1684,7 +1719,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
   }
 
-  private class R2Scanner extends TreeScanner {
+  private static class R2Scanner extends TreeScanner {
 
     Map<Integer, Id> symbolIds = new LinkedHashMap<>();
 

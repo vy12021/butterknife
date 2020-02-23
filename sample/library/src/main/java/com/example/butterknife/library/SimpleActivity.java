@@ -1,3 +1,4 @@
+/*
 package com.example.butterknife.library;
 
 import android.annotation.SuppressLint;
@@ -5,15 +6,11 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
-import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-
-import com.example.butterknife.librarys.R;
-import com.example.butterknife.librarys.R2;
 
 import java.util.List;
 
@@ -72,7 +69,7 @@ public class SimpleActivity extends Activity {
 
     // Contrived code to use the bound fields.
     title.setText("Butter Knife");
-    // subtitle.setText("Field and method binding for Android views.");
+    subtitle.setText("Field and method binding for Android views.");
     footer.setText("by Jake Wharton");
     // hello.setText("Say Hello");
 
@@ -80,3 +77,4 @@ public class SimpleActivity extends Activity {
     listOfThings.setAdapter(adapter);
   }
 }
+*/
