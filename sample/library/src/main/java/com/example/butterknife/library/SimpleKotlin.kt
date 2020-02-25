@@ -31,7 +31,6 @@ class SimpleKotlin : Activity() {
     Toast.makeText(this, "Hello, views!", Toast.LENGTH_SHORT).show()
     ViewCollections.run(headerViews, ALPHA_FADE)
   }
-
   /*@OnLongClick(R2.id.hello) fun sayGetOffMe(): Boolean {
     Toast.makeText(this, "Let go of me!", Toast.LENGTH_SHORT).show()
     return true

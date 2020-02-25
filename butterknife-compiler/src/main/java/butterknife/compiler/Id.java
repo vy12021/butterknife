@@ -17,9 +17,32 @@ final class Id {
   final int value;
   final CodeBlock code;
   final boolean qualifed;
+  final String qualifiedName;
 
   Id(int value) {
-    this(value, null);
+    this(value, (Symbol) null);
+  }
+
+  Id(int value, String qualifiedName) {
+    this.value = value;
+    if (qualifiedName != null) {
+      String ResClass = qualifiedName.substring(0, qualifiedName.lastIndexOf("."));
+      String RClass = ResClass.substring(0, ResClass.lastIndexOf("."));
+      ClassName RClassName = ClassName.bestGuess(RClass);
+      ClassName className = ClassName.get(RClassName.packageName(), R,
+              ResClass.substring(ResClass.lastIndexOf(".") + 1));
+      String resourceName = qualifiedName.substring(qualifiedName.lastIndexOf(".") + 1);
+
+      this.code = className.topLevelClassName().equals(ANDROID_R)
+              ? CodeBlock.of("$L.$N", className, resourceName)
+              : CodeBlock.of("$T.$N", className, resourceName);
+      this.qualifiedName = qualifiedName;
+      this.qualifed = true;
+    } else {
+      this.code = CodeBlock.of("$L", value);
+      this.qualifiedName = null;
+      this.qualifed = false;
+    }
   }
 
   Id(int value, @Nullable Symbol rSymbol) {
@@ -32,9 +55,11 @@ final class Id {
       this.code = className.topLevelClassName().equals(ANDROID_R)
         ? CodeBlock.of("$L.$N", className, resourceName)
         : CodeBlock.of("$T.$N", className, resourceName);
+      this.qualifiedName = code.toString();
       this.qualifed = true;
     } else {
       this.code = CodeBlock.of("$L", value);
+      this.qualifiedName = null;
       this.qualifed = false;
     }
   }

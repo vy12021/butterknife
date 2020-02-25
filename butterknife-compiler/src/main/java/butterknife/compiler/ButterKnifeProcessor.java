@@ -9,15 +9,22 @@ import com.squareup.javapoet.TypeName;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeScanner;
+import com.sun.tools.javac.util.Pair;
 
 import net.ltgt.gradle.incap.IncrementalAnnotationProcessor;
 import net.ltgt.gradle.incap.IncrementalAnnotationProcessorType;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.Writer;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -55,6 +62,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
+import javax.tools.JavaFileObject;
 
 import butterknife.Bind;
 import butterknife.BindAnim;
@@ -1506,7 +1514,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     Symbol symbol = getClassElement((Symbol) element);
 
     if (null == symbol || null == symbol.getQualifiedName()) {
-      warn(element, "findR2Package: null.");
       return null;
     }
 
@@ -1523,26 +1530,98 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     if (null == r2PackageScanner.packageName) {
-      warn(element, "findR2Package: rescan.");
       String qualified, packageName;
       for (Element clsElement : env.getRootElements()) {
         qualified = clsElement.toString();
-        warn(element, "clsElement: %s", qualified);
         if (!qualified.endsWith(".R2")) {
           continue;
         }
 
-        warn(element, "R2: %s", qualified);
         packageName = qualified.substring(0, qualified.length() - 3);
         if (qualifiedName.contains(packageName)) {
-          warn(element, "packageName: %s", qualified);
           return packageName;
         }
       }
     }
 
-    warn(element, "findR2Package: r2PackageScanner.packageName: %s.", r2PackageScanner.packageName);
     return r2PackageScanner.packageName;
+  }
+
+  private void writeR2Index(RoundEnvironment env, Element r2, Map<Integer, Id> ids) {
+    String sourceFile = getSourceFile(env, r2);
+    warn(r2, "writeR2Index...sourceFile: %s", sourceFile);
+    if (null == sourceFile) {
+      return;
+    }
+
+    int srcIndex = sourceFile.indexOf("/src");
+    int buildIndex = sourceFile.indexOf("/build");
+    if (srcIndex >= 0 || buildIndex >= 0) {
+      String srcDir = sourceFile.substring(0, Math.max(srcIndex, buildIndex));
+      String r2Index = srcDir + "/build/tmp/r2/index";
+      File file = new File(r2Index);
+      file.getParentFile().mkdirs();
+      try (Writer writer = new FileWriter(file)) {
+        boolean wrote = false;
+        for (Id id : ids.values()) {
+          if (id.qualifiedName == null) {
+            continue;
+          }
+          if (wrote) {
+            writer.write("\n");
+          }
+          writer.write(String.valueOf(id.value));
+          writer.write(",");
+          writer.write(id.qualifiedName);
+          wrote = true;
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
+  private Map<Integer, Id> readR2Index(RoundEnvironment env, Element r2) {
+    Map<Integer, Id> ids = new LinkedHashMap<>();
+    String sourceFile = getSourceFile(env, r2);
+    warn(r2, "readR2Index...sourceFile: %s", sourceFile);
+    if (null == sourceFile) {
+      return ids;
+    }
+
+    int srcIndex = sourceFile.indexOf("/src");
+    int buildIndex = sourceFile.indexOf("/build");
+    if (srcIndex >= 0 || buildIndex >= 0) {
+      String srcDir = sourceFile.substring(0, Math.max(srcIndex, buildIndex));
+      String r2Index = srcDir + "/build/tmp/r2/index";
+      File file = new File(r2Index);
+      if (!file.exists()) {
+        return ids;
+      }
+      try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        String line;
+        while (null != (line = reader.readLine())) {
+          String[] pair = line.split(",");
+          int value = Integer.parseInt(pair[0]);
+          String qualifiedName = pair[1];
+          ids.put(value, new Id(value, qualifiedName));
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+    return ids;
+  }
+
+  private String getSourceFile(RoundEnvironment env, Element element) {
+    JavacElements elements = (JavacElements) processingEnv.getElementUtils();
+    Pair<JCTree, JCTree.JCCompilationUnit> pair =
+            elements.getTreeAndTopLevel(element, null, null);
+    if (pair != null) {
+      JavaFileObject fileObject = pair.snd.sourcefile;
+      return fileObject.toUri().getPath();
+    }
+    return null;
   }
 
   private Map<Integer, Id> findR2SymbolIds(RoundEnvironment env, Element element) {
@@ -1551,8 +1630,12 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     String r2Package = findR2Package(env, element);
+    if (null == r2Package) {
+      return readR2Index(env, element);
+    }
+
     String rClassStub = r2Package + ".R2";
-    warn(element, "findR2SymbolIds: %s", rClassStub);
+    // warn(element, "findR2SymbolIds: %s", rClassStub);
     r2Scanner.reset();
     for (Element clsElement : env.getRootElements()) {
       if (clsElement.toString().equals(rClassStub)) {
@@ -1564,6 +1647,11 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
         break;
       }
     }
+
+    if (!r2Scanner.symbolIds.isEmpty()) {
+      writeR2Index(env, element, r2Scanner.symbolIds);
+    }
+
     return r2Scanner.symbolIds;
   }
 
@@ -1587,6 +1675,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     return new Id(value);
   }
 
+  @SuppressWarnings("all")
   private Map<Integer, Id> elementToIds(RoundEnvironment env, Element element,
                                         Class<? extends Annotation> annotation,
                                         int[] values) {
@@ -1603,8 +1692,8 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     for (int value : values) {
       Id id = resourceIds.get(value);
       Id _id = r2Ids.get(value);
-      warn(element, "elementToIds: id: %s, symbol: %s",
-              null == id ? "null" : id.code.toString(), null == _id ? "null" : _id.code.toString());
+      /*warn(element, "elementToIds: id: %s, symbol: %s",
+              null == id ? "null" : id.code.toString(), null == _id ? "null" : _id.code.toString());*/
       if ((null == id || id.isLiteral()) && null != (id = r2Ids.get(value))) {
         resourceIds.put(value, id);
       } else {
@@ -1699,15 +1788,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     Element element;
 
     @Override
-    public void visitImport(JCTree.JCImport jcImport) {
-      super.visitImport(jcImport);
-      warn(element, "visitImport: %s", jcImport.toString());
-    }
-
-    @Override
     public void visitSelect(JCTree.JCFieldAccess jcFieldAccess) {
-      // super.visitSelect(jcFieldAccess);
-      // warn(element, "visitSelect: %s", jcFieldAccess.toString());
       if ("R2".equals(jcFieldAccess.name.toString())) {
         String qualifiedName = jcFieldAccess.toString();
         packageName = qualifiedName.substring(0, qualifiedName.length() - 3);
