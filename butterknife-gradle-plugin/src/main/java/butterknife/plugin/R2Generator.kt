@@ -26,21 +26,31 @@ open class R2Generator : DefaultTask() {
   @get:Input
   var className: String? = null
 
+  @get:InputFiles
+  @get:PathSensitive(PathSensitivity.NONE)
+  var rCache: FileCollection? = null
+
   @Suppress("unused") // Invoked by Gradle.
   @TaskAction
   fun brewJava() {
-    brewJava(rFile!!.singleFile, outputDir!!, packageName!!, className!!)
+    brewJava(rFile!!.singleFile, rCache!!.singleFile,  outputDir!!, packageName!!, className!!)
   }
 }
 
 fun brewJava(
   rFile: File,
+  rCacheFile: File,
   outputDir: File,
   packageName: String,
   className: String
 ) {
   FinalRClassBuilder(packageName, className)
-      .also { ResourceSymbolListReader(it).readSymbolTable(rFile) }
+      .also {
+        ResourceSymbolListReader(it).apply {
+          readSymbolCache(rCacheFile)
+          readSymbolTable(rFile)
+        }
+      }
       .build()
       .writeTo(outputDir)
 }

@@ -15,6 +15,8 @@ private const val ANNOTATION_PACKAGE = "androidx.annotation"
 internal val SUPPORTED_TYPES = setOf("anim", "array", "attr", "bool", "color", "dimen",
     "drawable", "id", "integer", "layout", "menu", "plurals", "string", "style", "styleable")
 
+internal val SCANNBLE = ClassName.get("butterknife.internal", "Scannable")
+
 /**
  * Generates a class that contains all supported field names in an R file as final values.
  * Also enables adding support annotations to indicate the type of resource for every field.
@@ -28,7 +30,7 @@ class FinalRClassBuilder(
 
   fun build(): JavaFile {
     val result = TypeSpec.classBuilder(className)
-        .addModifiers(PUBLIC, FINAL)
+        .addModifiers(PUBLIC, FINAL).addAnnotation(SCANNBLE)
     for (type in SUPPORTED_TYPES) {
       resourceTypes.get(type)?.let {
         result.addType(it.build())

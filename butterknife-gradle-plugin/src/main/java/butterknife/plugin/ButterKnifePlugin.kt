@@ -76,11 +76,15 @@ class ButterKnifePlugin : Plugin<Project> {
                         "Minimum supported Android Gradle Plugin is 3.3.0")
                   })
                   .builtBy(processResources)
+          val rCache = project.files(
+
+          )
           val generate = project.tasks.create("generate${variant.name.capitalize()}R2", R2Generator::class.java) {
             it.outputDir = outputDir
             it.rFile = rFile
             it.packageName = rPackage
             it.className = "R2"
+            it.rCache = rCache
           }
           variant.registerJavaGeneratingTask(generate, outputDir)
         }

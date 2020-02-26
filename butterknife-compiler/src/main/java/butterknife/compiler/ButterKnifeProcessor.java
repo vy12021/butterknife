@@ -93,6 +93,7 @@ import butterknife.Optional;
 import butterknife.compiler.FieldTypefaceBinding.TypefaceStyles;
 import butterknife.internal.ListenerClass;
 import butterknife.internal.ListenerMethod;
+import butterknife.internal.Scannable;
 
 import static butterknife.internal.Constants.NO_RES_ID;
 import static java.util.Objects.requireNonNull;
@@ -146,7 +147,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
 
   private final RScanner rScanner = new RScanner();
   private final R2Scanner r2Scanner = new R2Scanner();
-  private final R2PackageScanner r2PackageScanner = new R2PackageScanner();
 
   @Override public synchronized void init(ProcessingEnvironment env) {
     super.init(env);
@@ -205,6 +205,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   private Set<Class<? extends Annotation>> getSupportedAnnotations() {
     Set<Class<? extends Annotation>> annotations = new LinkedHashSet<>();
 
+    annotations.add(Scannable.class);
     annotations.add(BindAnim.class);
     annotations.add(BindArray.class);
     annotations.add(BindBitmap.class);
@@ -225,12 +226,13 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   }
 
   @Override public boolean process(Set<? extends TypeElement> elements, RoundEnvironment env) {
+    scanR2Symbols(env);
+
     Map<TypeElement, BindingSet> bindingMap = findAndParseTargets(env);
 
     for (Map.Entry<TypeElement, BindingSet> entry : bindingMap.entrySet()) {
       TypeElement typeElement = entry.getKey();
       BindingSet binding = entry.getValue();
-
       JavaFile javaFile = binding.brewJava(sdk, debuggable);
       try {
         javaFile.writeTo(filer);
@@ -242,7 +244,105 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     return false;
   }
 
+  private void scanR2Symbols(RoundEnvironment env) {
+    for (Element element : env.getRootElements()) {
+      String qualifiedName = element.toString();
+      warn(element, "scanR2Symbols: %s", qualifiedName);
+      if (!qualifiedName.endsWith(".R2")) {
+        continue;
+      }
+
+      String sourceFile = getSourceFile(env, element);
+      if (null == sourceFile) {
+        continue;
+      }
+      warn(element, "scanR2Symbols...sourceFile: %s", sourceFile);
+
+      r2Scanner.reset();
+      JCTree tree = (JCTree) trees.getTree(element);
+      if (null == tree) {
+        continue;
+      }
+      tree.accept(r2Scanner);
+      if (r2Scanner.symbolIds.isEmpty()) {
+        continue;
+      }
+
+      int srcIndex = sourceFile.indexOf("/src");
+      int buildIndex = sourceFile.indexOf("/build");
+      if (srcIndex >= 0 || buildIndex >= 0) {
+        String srcDir = sourceFile.substring(0, Math.max(srcIndex, buildIndex));
+        String r2Index = srcDir + "/build/tmp/r2/index";
+        File file = new File(r2Index);
+        file.getParentFile().mkdirs();
+        try (Writer writer = new FileWriter(file)) {
+          boolean wrote = false;
+          for (Id id : r2Scanner.symbolIds.values()) {
+            if (id.qualifiedName == null) {
+              continue;
+            }
+            if (wrote) {
+              writer.write("\n");
+            }
+            writer.write(String.valueOf(id.value));
+            writer.write(",");
+            writer.write(id.qualifiedName);
+            wrote = true;
+          }
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+  }
+
+  private Map<Integer, Id> readR2Symbol(RoundEnvironment env, Element element) {
+    String sourceFile = getSourceFile(env, element);
+    warn(element, "readR2Symbol...sourceFile: %s", sourceFile);
+    if (null == sourceFile) {
+      return Collections.emptyMap();
+    }
+
+    Map<Integer, Id> ids = new LinkedHashMap<>();
+    int srcIndex = sourceFile.indexOf("/src");
+    int buildIndex = sourceFile.indexOf("/build");
+    if (srcIndex >= 0 || buildIndex >= 0) {
+      String srcDir = sourceFile.substring(0, Math.max(srcIndex, buildIndex));
+      String r2Index = srcDir + "/build/tmp/r2/index";
+      File file = new File(r2Index);
+      if (!file.exists()) {
+        return ids;
+      }
+      try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        String line;
+        while (null != (line = reader.readLine())) {
+          String[] pair = line.split(",");
+          int value = Integer.parseInt(pair[0]);
+          String qualifiedName = pair[1];
+          ids.put(value, new Id(value, qualifiedName));
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+    return ids;
+  }
+
+  private String getSourceFile(RoundEnvironment env, Element element) {
+    JavacElements elements = (JavacElements) processingEnv.getElementUtils();
+    Pair<JCTree, JCTree.JCCompilationUnit> pair =
+            elements.getTreeAndTopLevel(element, null, null);
+    if (pair != null) {
+      JavaFileObject fileObject = pair.snd.sourcefile;
+      return fileObject.toUri().getPath();
+    }
+    return null;
+  }
+
   private Map<TypeElement, BindingSet> findAndParseTargets(RoundEnvironment env) {
+    for (Element element : env.getRootElements()) {
+
+    }
     Map<TypeElement, BindingSet.Builder> builderMap = new LinkedHashMap<>();
     Set<TypeElement> erasedTargetNames = new LinkedHashSet<>();
 
@@ -1501,178 +1601,33 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     processingEnv.getMessager().printMessage(kind, message, element);
   }
 
-  private Symbol getClassElement(Symbol element) {
-    if (element.type instanceof Type.ClassType) {
-      return element;
-    } else if (null != element.owner) {
-      return getClassElement(element.owner);
-    }
-    return null;
-  }
-
-  private String findR2Package(RoundEnvironment env, Element element) {
-    Symbol symbol = getClassElement((Symbol) element);
-
-    if (null == symbol || null == symbol.getQualifiedName()) {
-      return null;
-    }
-
-    String qualifiedName = symbol.getQualifiedName().toString();
-    r2PackageScanner.reset();
-    for (Element clsElement : env.getRootElements()) {
-      if (clsElement.toString().equals(qualifiedName)) {
-        JCTree tree = (JCTree) trees.getTree(clsElement);
-        if (tree != null) {
-          tree.accept(r2PackageScanner);
-        }
-        break;
-      }
-    }
-
-    if (null == r2PackageScanner.packageName) {
-      String qualified, packageName;
-      for (Element clsElement : env.getRootElements()) {
-        qualified = clsElement.toString();
-        if (!qualified.endsWith(".R2")) {
-          continue;
-        }
-
-        packageName = qualified.substring(0, qualified.length() - 3);
-        if (qualifiedName.contains(packageName)) {
-          return packageName;
-        }
-      }
-    }
-
-    return r2PackageScanner.packageName;
-  }
-
-  private void writeR2Index(RoundEnvironment env, Element r2, Map<Integer, Id> ids) {
-    String sourceFile = getSourceFile(env, r2);
-    warn(r2, "writeR2Index...sourceFile: %s", sourceFile);
-    if (null == sourceFile) {
-      return;
-    }
-
-    int srcIndex = sourceFile.indexOf("/src");
-    int buildIndex = sourceFile.indexOf("/build");
-    if (srcIndex >= 0 || buildIndex >= 0) {
-      String srcDir = sourceFile.substring(0, Math.max(srcIndex, buildIndex));
-      String r2Index = srcDir + "/build/tmp/r2/index";
-      File file = new File(r2Index);
-      file.getParentFile().mkdirs();
-      try (Writer writer = new FileWriter(file)) {
-        boolean wrote = false;
-        for (Id id : ids.values()) {
-          if (id.qualifiedName == null) {
-            continue;
-          }
-          if (wrote) {
-            writer.write("\n");
-          }
-          writer.write(String.valueOf(id.value));
-          writer.write(",");
-          writer.write(id.qualifiedName);
-          wrote = true;
-        }
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
-  }
-
-  private Map<Integer, Id> readR2Index(RoundEnvironment env, Element r2) {
-    Map<Integer, Id> ids = new LinkedHashMap<>();
-    String sourceFile = getSourceFile(env, r2);
-    warn(r2, "readR2Index...sourceFile: %s", sourceFile);
-    if (null == sourceFile) {
-      return ids;
-    }
-
-    int srcIndex = sourceFile.indexOf("/src");
-    int buildIndex = sourceFile.indexOf("/build");
-    if (srcIndex >= 0 || buildIndex >= 0) {
-      String srcDir = sourceFile.substring(0, Math.max(srcIndex, buildIndex));
-      String r2Index = srcDir + "/build/tmp/r2/index";
-      File file = new File(r2Index);
-      if (!file.exists()) {
-        return ids;
-      }
-      try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-        String line;
-        while (null != (line = reader.readLine())) {
-          String[] pair = line.split(",");
-          int value = Integer.parseInt(pair[0]);
-          String qualifiedName = pair[1];
-          ids.put(value, new Id(value, qualifiedName));
-        }
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
-    return ids;
-  }
-
-  private String getSourceFile(RoundEnvironment env, Element element) {
-    JavacElements elements = (JavacElements) processingEnv.getElementUtils();
-    Pair<JCTree, JCTree.JCCompilationUnit> pair =
-            elements.getTreeAndTopLevel(element, null, null);
-    if (pair != null) {
-      JavaFileObject fileObject = pair.snd.sourcefile;
-      return fileObject.toUri().getPath();
-    }
-    return null;
-  }
-
   private Map<Integer, Id> findR2SymbolIds(RoundEnvironment env, Element element) {
     if (!(element instanceof Symbol)) {
       return Collections.emptyMap();
     }
-
-    String r2Package = findR2Package(env, element);
-    if (null == r2Package) {
-      return readR2Index(env, element);
-    }
-
-    String rClassStub = r2Package + ".R2";
-    // warn(element, "findR2SymbolIds: %s", rClassStub);
-    r2Scanner.reset();
-    for (Element clsElement : env.getRootElements()) {
-      if (clsElement.toString().equals(rClassStub)) {
-        JCTree tree = (JCTree) trees.getTree(clsElement);
-        // tree can be null if the references are compiled types and not source
-        if (tree != null) {
-          tree.accept(r2Scanner);
-        }
-        break;
-      }
-    }
-
-    if (!r2Scanner.symbolIds.isEmpty()) {
-      writeR2Index(env, element, r2Scanner.symbolIds);
-    }
-
-    return r2Scanner.symbolIds;
+    return readR2Symbol(env, element);
   }
 
   private Id elementToId(RoundEnvironment env, Element element,
                          Class<? extends Annotation> annotation, int value) {
     JCTree tree = (JCTree) trees.getTree(element, getMirror(element, annotation));
+    Id id = new Id(value);
     if (tree != null) { // tree can be null if the references are compiled types and not source
       rScanner.reset();
       tree.accept(rScanner);
       if (!rScanner.resourceIds.isEmpty()) {
-        Id id = rScanner.resourceIds.values().iterator().next();
-        if (id.isLiteral()) {
-          Map<Integer, Id> r2Ids = findR2SymbolIds(env, element);
-          if (r2Ids.containsKey(id.value)) {
-            return r2Ids.get(id.value);
-          }
-        }
-        return id;
+        id = rScanner.resourceIds.values().iterator().next();
       }
     }
-    return new Id(value);
+
+    if (id.isLiteral()) {
+      Map<Integer, Id> r2Ids = findR2SymbolIds(env, element);
+      Id _id = r2Ids.get(value);
+      if (_id != null) {
+        id = _id;
+      }
+    }
+    return id;
   }
 
   @SuppressWarnings("all")
@@ -1692,10 +1647,8 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     for (int value : values) {
       Id id = resourceIds.get(value);
       Id _id = r2Ids.get(value);
-      /*warn(element, "elementToIds: id: %s, symbol: %s",
-              null == id ? "null" : id.code.toString(), null == _id ? "null" : _id.code.toString());*/
-      if ((null == id || id.isLiteral()) && null != (id = r2Ids.get(value))) {
-        resourceIds.put(value, id);
+      if ((null == id || id.isLiteral()) && null != _id) {
+        resourceIds.put(value, _id);
       } else {
         resourceIds.putIfAbsent(value, new Id(value));
       }
@@ -1782,26 +1735,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
   }
 
-  private class R2PackageScanner extends TreeScanner {
-
-    String packageName;
-    Element element;
-
-    @Override
-    public void visitSelect(JCTree.JCFieldAccess jcFieldAccess) {
-      if ("R2".equals(jcFieldAccess.name.toString())) {
-        String qualifiedName = jcFieldAccess.toString();
-        packageName = qualifiedName.substring(0, qualifiedName.length() - 3);
-      }
-    }
-
-    void reset() {
-      packageName = null;
-    }
-  }
-
   private static class R2Scanner extends TreeScanner {
-
     Map<Integer, Id> symbolIds = new LinkedHashMap<>();
 
     @Override public void visitVarDef(JCTree.JCVariableDecl variableDecl) {

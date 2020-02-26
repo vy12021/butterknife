@@ -13,24 +13,25 @@ import butterknife.*
 
 class SimpleKotlin : Activity() {
 
-  @BindView(R2.id.title)
+  /*@BindView(R2.id.title)
   lateinit var title: TextView
   @Bind(R2.id.subtitle) lateinit var subtitle: TextView
-  @BindView(R2.id.hello) lateinit var hello: Button
+  @BindView(R2.id.hello_1) lateinit var hello: Button
   @BindView(R2.id.list_of_things)
   lateinit var listOfThings: ListView
-  @BindView(R2.id.footer)
+  @BindView(R2.id.footer_hh)
   lateinit var footer: TextView
   @BindViews(R2.id.title, R2.id.subtitle)
-  lateinit var headerViews: Array<View>
+  lateinit var headerViews: Array<View>*/
 
   private var adapter: SimpleAdapter? = null
 
-  @OnClick(R2.id.hello)
-  fun sayHello() {
+  @OnClick(R2.id.hello3)
+  fun sayHello2() {
     Toast.makeText(this, "Hello, views!", Toast.LENGTH_SHORT).show()
-    ViewCollections.run(headerViews, ALPHA_FADE)
+    // ViewCollections.run(headerViews, ALPHA_FADE)
   }
+
   /*@OnLongClick(R2.id.hello) fun sayGetOffMe(): Boolean {
     Toast.makeText(this, "Let go of me!", Toast.LENGTH_SHORT).show()
     return true
@@ -47,11 +48,11 @@ class SimpleKotlin : Activity() {
     setContentView(R.layout.simple_activity)
     ButterKnife.bind(this)
     // Contrived code to use the bound fields.
-    title.text = "Butter Knife"
-    subtitle.setText("Field and method binding for Android views.");
-    footer.text = "by Jake Wharton"
-    adapter = SimpleAdapter(this)
-    listOfThings.adapter = adapter
+//    title.text = "Butter Knife"
+//    subtitle.setText("Field and method binding for Android views.");
+//    footer.text = "by Jake Wharton"
+//    adapter = SimpleAdapter(this)
+//    listOfThings.adapter = adapter
   }
 
   companion object {

@@ -3,10 +3,20 @@ buildscript {
     mavenCentral()
     jcenter()
     google()
+    maven {
+      url "http://nexus.bhbcode.com/repository/android-plugin/"
+      credentials {
+        username mavenUsername
+        password mavenPassword
+      }
+      authentication {
+        basic(BasicAuthentication)
+      }
+    }
   }
 
   dependencies {
-    classpath "com.jakewharton:butterknife-gradle-plugin:10.2.1"
+    classpath "com.jakewharton:butterknife-gradle-plugin:10.2.2.5.1-SNAPSHOT"
   }
 }
 
