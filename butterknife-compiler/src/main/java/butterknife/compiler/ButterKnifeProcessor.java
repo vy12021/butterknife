@@ -247,7 +247,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   private void scanR2Symbols(RoundEnvironment env) {
     for (Element element : env.getRootElements()) {
       String qualifiedName = element.toString();
-      warn(element, "scanR2Symbols: %s", qualifiedName);
       if (!qualifiedName.endsWith(".R2")) {
         continue;
       }
@@ -256,7 +255,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       if (null == sourceFile) {
         continue;
       }
-      warn(element, "scanR2Symbols...sourceFile: %s", sourceFile);
 
       r2Scanner.reset();
       JCTree tree = (JCTree) trees.getTree(element);
@@ -289,7 +287,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
             writer.write(id.qualifiedName);
             wrote = true;
           }
-        } catch (IOException e) {
+        } catch (Exception e) {
           e.printStackTrace();
         }
       }
@@ -298,7 +296,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
 
   private Map<Integer, Id> readR2Symbol(RoundEnvironment env, Element element) {
     String sourceFile = getSourceFile(env, element);
-    warn(element, "readR2Symbol...sourceFile: %s", sourceFile);
     if (null == sourceFile) {
       return Collections.emptyMap();
     }
@@ -321,7 +318,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
           String qualifiedName = pair[1];
           ids.put(value, new Id(value, qualifiedName));
         }
-      } catch (IOException e) {
+      } catch (Exception e) {
         e.printStackTrace();
       }
     }

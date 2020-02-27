@@ -1,28 +1,36 @@
 package butterknife.plugin
 
-import com.android.ide.common.util.multimapOf
 import com.squareup.javapoet.CodeBlock
-import java.io.BufferedReader
 import java.io.File
-import java.io.FileReader
-import java.io.IOException
 
 internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder) {
   private var idValue = 0
-  private val symbols = mutableMapOf<String, Int>()
+  private var idChanged = 0
+  private var cacheVersion = 0
+  private val cacheSymbols = mutableMapOf<String, Int>()
 
-  fun readSymbolCache(symbolTable: File) {
-    symbolTable.forEachLine { processCacheLine(it) }
+  fun process(symbolCacheDir: File, symbolTable: File) {
+    val versionFile = symbolCacheDir.resolve("version")
+    cacheVersion = versionFile.readText().toInt()
+    readSymbolCache(symbolCacheDir)
+    readSymbolTable(symbolTable)
+    if (idChanged > 0) {
+      versionFile.writeText((++cacheVersion).toString())
+    }
+  }
+
+  private fun readSymbolCache(symbolCache: File) {
+    symbolCache.resolve("index").forEachLine { processCacheLine(it) }
   }
 
   private fun processCacheLine(line: String) {
     val pair = line.split(",")
     val value = pair[0].toInt()
     val qualifiedName = pair[1]
-    symbols[qualifiedName.substringAfterLast(".")] = value
+    cacheSymbols[qualifiedName.substringAfterLast(".")] = value
   }
 
-  fun readSymbolTable(symbolTable: File) {
+  private fun readSymbolTable(symbolTable: File) {
     symbolTable.forEachLine { processLine(it) }
   }
 
@@ -40,7 +48,18 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
       return
     }
     val name = values[2]
-    val value = CodeBlock.of("\$L", ++idValue)
+    val cache = cacheSymbols.getOrDefault(name, 0)
+    val value = CodeBlock.of("\$L",
+            if (cacheSymbols.isEmpty()) {
+              ++idValue
+            } else {
+              if (cache == 0) {
+                (cacheVersion + 1) * 10000 + ++idChanged
+              } else {
+                cache
+              }
+            }
+    )
     builder.addResourceField(symbolType, name, value)
   }
 }

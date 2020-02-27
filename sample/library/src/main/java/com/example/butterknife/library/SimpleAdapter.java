@@ -44,18 +44,18 @@ public class SimpleAdapter extends BaseAdapter {
     }
 
     String word = getItem(position);
-//    holder.word.setText("Word: " + word);
-//    holder.length.setText("Length: " + word.length());
-//    holder.position.setText("Position: " + position);
+    holder.word.setText("Word: " + word);
+    holder.length.setText("Length: " + word.length());
+    holder.position.setText("Position: " + position);
     // Note: don't actually do string concatenation like this in an adapter's getView.
 
     return view;
   }
 
   static final class ViewHolder {
-//    @BindView(R2.id.word) TextView word;
-//    @BindView(R2.id.length) TextView length;
-//    @BindView(R2.id.position) TextView position;
+    @BindView(R2.id.word) TextView word;
+    @BindView(R2.id.length) TextView length;
+    @BindView(R2.id.position) TextView position;
 
     ViewHolder(View view) {
       ButterKnife.bind(this, view);

@@ -12,13 +12,14 @@ class FinalRClassBuilderTest {
   @Rule @JvmField val tempFolder = TemporaryFolder()
 
   @Test fun brewJava() {
+    val rCache = tempFolder.newFile("index")
     val packageName = "com.butterknife.example"
     val rFile = tempFolder.newFile("R.txt").also {
       it.writeText(javaClass.getResource("/fixtures/R.txt").readText())
     }
 
     val outputDir = tempFolder.newFolder()
-    brewJava(rFile, outputDir, packageName, "R2")
+    brewJava(rFile, rCache, outputDir, packageName, "R2")
 
     val actual = outputDir.resolve("com/butterknife/example/R2.java").readText()
     val expected = javaClass.getResource("/fixtures/R2.java").readText()

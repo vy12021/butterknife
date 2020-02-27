@@ -2,13 +2,7 @@ package butterknife.plugin
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.FileCollection
-import org.gradle.api.tasks.CacheableTask
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputFiles
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.PathSensitive
-import org.gradle.api.tasks.PathSensitivity
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.*
 import java.io.File
 
 @CacheableTask
@@ -26,20 +20,20 @@ open class R2Generator : DefaultTask() {
   @get:Input
   var className: String? = null
 
-  @get:InputFiles
+  @get:InputDirectory
   @get:PathSensitive(PathSensitivity.NONE)
-  var rCache: FileCollection? = null
+  var rCacheDir: File? = null
 
   @Suppress("unused") // Invoked by Gradle.
   @TaskAction
   fun brewJava() {
-    brewJava(rFile!!.singleFile, rCache!!.singleFile,  outputDir!!, packageName!!, className!!)
+    brewJava(rFile!!.singleFile, rCacheDir!!, outputDir!!, packageName!!, className!!)
   }
 }
 
 fun brewJava(
   rFile: File,
-  rCacheFile: File,
+  rCacheDir: File,
   outputDir: File,
   packageName: String,
   className: String
@@ -47,8 +41,7 @@ fun brewJava(
   FinalRClassBuilder(packageName, className)
       .also {
         ResourceSymbolListReader(it).apply {
-          readSymbolCache(rCacheFile)
-          readSymbolTable(rFile)
+          process(rCacheDir, rFile)
         }
       }
       .build()
