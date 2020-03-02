@@ -16,7 +16,7 @@ final class Id {
 
   final int value;
   final CodeBlock code;
-  final boolean qualifed;
+  final boolean qualified;
   final String qualifiedName;
 
   Id(int value) {
@@ -28,8 +28,7 @@ final class Id {
     if (qualifiedName != null) {
       String ResClass = qualifiedName.substring(0, qualifiedName.lastIndexOf("."));
       String RClass = ResClass.substring(0, ResClass.lastIndexOf("."));
-      ClassName RClassName = ClassName.bestGuess(RClass);
-      ClassName className = ClassName.get(RClassName.packageName(), R,
+      ClassName className = ClassName.get(RClass.substring(0, RClass.lastIndexOf(".")), R,
               ResClass.substring(ResClass.lastIndexOf(".") + 1));
       String resourceName = qualifiedName.substring(qualifiedName.lastIndexOf(".") + 1);
 
@@ -37,11 +36,11 @@ final class Id {
               ? CodeBlock.of("$L.$N", className, resourceName)
               : CodeBlock.of("$T.$N", className, resourceName);
       this.qualifiedName = qualifiedName;
-      this.qualifed = true;
+      this.qualified = true;
     } else {
       this.code = CodeBlock.of("$L", value);
       this.qualifiedName = null;
-      this.qualifed = false;
+      this.qualified = false;
     }
   }
 
@@ -56,11 +55,11 @@ final class Id {
         ? CodeBlock.of("$L.$N", className, resourceName)
         : CodeBlock.of("$T.$N", className, resourceName);
       this.qualifiedName = code.toString();
-      this.qualifed = true;
+      this.qualified = true;
     } else {
       this.code = CodeBlock.of("$L", value);
       this.qualifiedName = null;
-      this.qualifed = false;
+      this.qualified = false;
     }
   }
 

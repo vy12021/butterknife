@@ -716,7 +716,7 @@ final class BindingSet implements BindingInformationProvider {
   /** True when this type's bindings use raw integer values instead of {@code R} references. */
   private boolean hasUnqualifiedResourceBindings() {
     for (ResourceBinding binding : resourceBindings) {
-      if (!binding.id().qualifed) {
+      if (!binding.id().qualified) {
         return true;
       }
     }
