@@ -20,8 +20,7 @@ open class R2Generator : DefaultTask() {
   @get:Input
   var className: String? = null
 
-  @get:InputDirectory
-  @get:PathSensitive(PathSensitivity.NONE)
+  @get:Input
   var rCacheDir: File? = null
 
   @Suppress("unused") // Invoked by Gradle.

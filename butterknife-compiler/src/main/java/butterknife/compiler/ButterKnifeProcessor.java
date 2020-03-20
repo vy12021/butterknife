@@ -337,9 +337,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   }
 
   private Map<TypeElement, BindingSet> findAndParseTargets(RoundEnvironment env) {
-    for (Element element : env.getRootElements()) {
-
-    }
     Map<TypeElement, BindingSet.Builder> builderMap = new LinkedHashMap<>();
     Set<TypeElement> erasedTargetNames = new LinkedHashSet<>();
 
