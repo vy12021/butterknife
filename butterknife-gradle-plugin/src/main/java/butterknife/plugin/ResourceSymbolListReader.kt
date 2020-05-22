@@ -10,11 +10,13 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
   private val cacheSymbols = mutableMapOf<String, Int>()
 
   fun process(symbolCacheDir: File, symbolTable: File) {
-    readSymbolCache(symbolCacheDir)
-    readSymbolTable(symbolTable)
     val versionFile = symbolCacheDir.resolve("version")
     if (versionFile.exists()) {
       cacheVersion = versionFile.readText().toInt()
+      readSymbolCache(symbolCacheDir)
+    }
+    readSymbolTable(symbolTable)
+    if (versionFile.exists()) {
       if (idChanged > 0) {
         versionFile.writeText((++cacheVersion).toString())
       }
@@ -22,9 +24,7 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
   }
 
   private fun readSymbolCache(symbolCache: File) {
-    if (symbolCache.exists()) {
-      symbolCache.resolve("index").forEachLine { processCacheLine(it) }
-    }
+    symbolCache.resolve("index").forEachLine { processCacheLine(it) }
   }
 
   private fun processCacheLine(line: String) {
