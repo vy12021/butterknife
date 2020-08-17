@@ -8,6 +8,7 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
   private var idChanged = 0
   private var cacheVersion = 0
   private val cacheSymbols = mutableMapOf<String, Int>()
+  private var idCount: Int = 0
 
   fun process(symbolCacheDir: File, symbolTable: File) {
     val versionFile = symbolCacheDir.resolve("version")
@@ -35,6 +36,8 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
   }
 
   private fun readSymbolTable(symbolTable: File) {
+    symbolTable.forEachLine { idCount++ }
+    idCount += 1000
     symbolTable.forEachLine { processLine(it) }
   }
 
@@ -58,7 +61,7 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
               ++idValue
             } else {
               if (cache == 0) {
-                (cacheVersion + 1) * 10000 + ++idChanged
+                (cacheVersion + 1) * idCount + ++idChanged
               } else {
                 cache
               }
