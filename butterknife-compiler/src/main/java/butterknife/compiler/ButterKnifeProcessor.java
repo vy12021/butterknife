@@ -1273,6 +1273,12 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
       key = (String) annotationKey.invoke(annotation);
     }
 
+    String[] data = null;
+    Method annotationData = annotationClass.getDeclaredMethod("data");
+    if (annotationKey.getReturnType() == String[].class) {
+      data = (String[]) annotationData.invoke(annotation);
+    }
+
     ListenerClass listener = annotationClass.getAnnotation(ListenerClass.class);
     if (listener == null) {
       throw new IllegalStateException(
@@ -1416,7 +1422,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     }
 
     MethodViewBinding binding = new MethodViewBinding(name,
-            Arrays.asList(parameters), requireds, retry, key, required, hasReturnValue);
+            Arrays.asList(parameters), requireds, key, data, required, retry, hasReturnValue);
     BindingSet.Builder builder = getOrCreateBindingBuilder(builderMap, enclosingElement);
     Map<Integer, Id> resourceIds = elementToIds(env, element, annotationClass, ids);
     for (Map.Entry<Integer, Id> entry : resourceIds.entrySet()) {

@@ -51,5 +51,6 @@ public @interface OnItemLongClick {
   @IdRes int[] value() default { View.NO_ID };
   String[] required() default {};
   String key() default "";
+  String[] data() default {};
   boolean retry() default false;
 }

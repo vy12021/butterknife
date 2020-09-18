@@ -5,7 +5,6 @@ import android.app.Activity
 import android.os.Bundle
 import android.view.View
 import android.view.animation.AlphaAnimation
-import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
@@ -16,7 +15,7 @@ class SimpleKotlin : Activity() {
   @BindView(R2.id.title)
   lateinit var title: TextView
   @Bind(R2.id.subtitle) lateinit var subtitle: TextView
-  @BindView(R2.id.list_of_things)
+  @BindView(R2.id.list_of_things1)
   lateinit var listOfThings: ListView
   @BindView(R2.id.footer)
   lateinit var footer: TextView
@@ -36,7 +35,7 @@ class SimpleKotlin : Activity() {
     return true
   }
 
-  @OnItemClick(R2.id.list_of_things)
+  @OnItemClick(R2.id.list_of_things1)
   fun onItemClick(position: Int) {
     Toast.makeText(this, "You clicked: " + adapter!!.getItem(position), Toast.LENGTH_SHORT).show()
   }

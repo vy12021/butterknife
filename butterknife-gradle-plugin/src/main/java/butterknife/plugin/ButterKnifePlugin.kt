@@ -67,8 +67,7 @@ class ButterKnifePlugin : Plugin<Project> {
           val processResources = output.processResourcesProvider.get() // TODO lazy
 
           // TODO: switch to better API once exists in AGP (https://issuetracker.google.com/118668005)
-          val rFile =
-              project.files(
+          val rFile = project.files(
                   when (processResources) {
                     is GenerateLibraryRFileTask -> processResources.textSymbolOutputFile
                     is LinkApplicationAndroidResourcesTask -> processResources.textSymbolOutputFile
@@ -80,9 +79,6 @@ class ButterKnifePlugin : Plugin<Project> {
             mkdirs()
             if (!resolve("index").exists()) {
               resolve("index").createNewFile()
-            }
-            if (!resolve("version").exists()) {
-              resolve("version").writeText("0")
             }
           }
           val generate = project.tasks.create("generate${variant.name.capitalize()}R2", R2Generator::class.java) {

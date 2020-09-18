@@ -2,30 +2,25 @@ package butterknife.plugin
 
 import com.squareup.javapoet.CodeBlock
 import java.io.File
+import kotlin.math.max
 
 internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder) {
+  private var idLastValue = 0
   private var idValue = 0
-  private var idChanged = 0
-  private var cacheVersion = 0
   private val cacheSymbols = mutableMapOf<String, Int>()
-  private var idCount: Int = 0
+  private val changedSymbols = mutableMapOf<String, ArrayList<String>>()
 
   fun process(symbolCacheDir: File, symbolTable: File) {
-    val versionFile = symbolCacheDir.resolve("version")
-    if (versionFile.exists()) {
-      cacheVersion = versionFile.readText().toInt()
-      readSymbolCache(symbolCacheDir)
-    }
+    readSymbolCache(symbolCacheDir)
     readSymbolTable(symbolTable)
-    if (versionFile.exists()) {
-      if (idChanged > 0) {
-        versionFile.writeText((++cacheVersion).toString())
-      }
-    }
   }
 
-  private fun readSymbolCache(symbolCache: File) {
-    symbolCache.resolve("index").forEachLine { processCacheLine(it) }
+  private fun readSymbolCache(symbolCacheDir: File) {
+    try {
+      symbolCacheDir.resolve("index").forEachLine { processCacheLine(it) }
+    } catch(e : Exception) {
+      e.printStackTrace()
+    }
   }
 
   private fun processCacheLine(line: String) {
@@ -36,9 +31,12 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
   }
 
   private fun readSymbolTable(symbolTable: File) {
-    symbolTable.forEachLine { idCount++ }
-    idCount += 1000
     symbolTable.forEachLine { processLine(it) }
+    changedSymbols.forEach { (type, names) ->
+      names.forEach { name ->
+        builder.addResourceField(type, name, CodeBlock.of("\$L", ++idLastValue))
+      }
+    }
   }
 
   private fun processLine(line: String) {
@@ -56,17 +54,17 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
     }
     val name = values[2]
     val cache = cacheSymbols.getOrDefault(name, 0)
-    val value = CodeBlock.of("\$L",
-            if (cacheSymbols.isEmpty()) {
-              ++idValue
-            } else {
-              if (cache == 0) {
-                (cacheVersion + 1) * idCount + ++idChanged
-              } else {
-                cache
-              }
-            }
-    )
-    builder.addResourceField(symbolType, name, value)
+    val value = if (cacheSymbols.isEmpty()) { ++idValue } else { cache }
+    idLastValue = max(idLastValue, value)
+    if (0 == value) {
+      var values = changedSymbols[symbolType]
+      if (null == values) {
+        values = java.util.ArrayList()
+        changedSymbols[symbolType] = values
+      }
+      values.add(name)
+    } else {
+      builder.addResourceField(symbolType, name, CodeBlock.of("\$L", value))
+    }
   }
 }

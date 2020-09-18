@@ -59,10 +59,7 @@ final class ViewBinding {
     if (isBoundToRoot()) {
       return false;
     }
-    if (isSingleFieldBinding()) {
-      return false;
-    }
-    return true;
+    return !isSingleFieldBinding();
   }
 
   public boolean isBoundToRoot() {
