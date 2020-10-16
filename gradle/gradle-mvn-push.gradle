@@ -20,18 +20,9 @@ apply plugin: 'signing'
 version = VERSION_NAME
 group = GROUP
 
-def isReleaseBuild() {
-  return !VERSION_NAME.contains("SNAPSHOT")
-}
-
 def getReleaseRepositoryUrl() {
   return hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
       : "https://nexus.bhbcode.com/repository/android-plugin/"
-}
-
-def getSnapshotRepositoryUrl() {
-  return hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
-      : "https://nexus.bhbcode.com/repository/android/"
 }
 
 def getRepositoryUsername() {
@@ -86,9 +77,6 @@ afterEvaluate { project ->
         repository(url: getReleaseRepositoryUrl()) {
           authentication(userName: getRepositoryUsername(), password: getRepositoryPassword())
         }
-        snapshotRepository(url: getSnapshotRepositoryUrl()) {
-          authentication(userName: getRepositoryUsername(), password: getRepositoryPassword())
-        }
 
         configurePom(pom)
       }
@@ -108,7 +96,7 @@ afterEvaluate { project ->
   }
 
   signing {
-    required { isReleaseBuild() && gradle.taskGraph.hasTask("uploadArchives") }
+    required { gradle.taskGraph.hasTask("uploadArchives") }
     sign configurations.archives
   }
 

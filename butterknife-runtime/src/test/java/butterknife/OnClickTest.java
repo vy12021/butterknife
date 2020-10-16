@@ -1,9 +1,12 @@
 package butterknife;
 
-import butterknife.compiler.ButterKnifeProcessor;
 import com.google.testing.compile.JavaFileObjects;
-import javax.tools.JavaFileObject;
+
 import org.junit.Test;
+
+import javax.tools.JavaFileObject;
+
+import butterknife.compiler.ButterKnifeProcessor;
 
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.testing.compile.JavaSourceSubjectFactory.javaSource;
@@ -21,14 +24,12 @@ public class OnClickTest {
         + "import java.lang.Override;\n"
         + "public class Test implements ViewBinder {\n"
         + "  @BindView(1) View view;\n"
-        + "  @BindView(2) View view2;\n"
-        + "  @OnClick(value = {1}, required = {\"valid\"}, key = \"key1\", retry = true) void doStuff() {}\n"
-        + "  @OnLongClick(value = {1}, required = {\"longValid\"}, key = \"key2\", retry = true) boolean doLongStuff() {return true;}\n"
+        + "  @OnClick(value = {1}, required = {\"valid\", \"permission\"}, key = \"key\", data = {\"file\"}, retry = true) void doStuff() {}\n"
         + "  @Override public void onPreClick(ClickSession session) {}\n"
         + "  @Override public void onPostClick(ClickSession session) {}\n"
         + "  @Override public View getView() {return null;}\n"
         + "  public boolean valid(ClickSession session) {return false;}\n"
-        + "  public boolean longValid(ClickSession session) {return true;}\n"
+        + "  public boolean permission(ClickSession session) {return true;}\n"
         + "}"
     );
 
@@ -59,7 +60,7 @@ public class OnClickTest {
         + "    view.setOnClickListener(new DebouncingOnClickListener() {\n"
         + "      @Override\n"
         + "      public void doClick(View p0) {\n"
-        + "        Condition[] conditions = new Condition[0];\n"
+        + "        Condition[] conditions = new Condition[1];\n"
         + "        MethodExecutor executor = new MethodExecutor(\"doStuff\") {\n"
         + "          @Override\n"
         + "          protected Object execute() {\n"
@@ -67,12 +68,19 @@ public class OnClickTest {
         + "            return null;\n"
         + "          }\n"
         + "        };\n"
-        + "        final ClickSession session = new ClickSession(target, p0, \"\", conditions, executor, false);\n"
+        + "        final String[] data = new String[] {\"file\"};\n"
+        + "        final ClickSession session = new ClickSession(target, p0, \"key\", data, conditions, executor, false);\n"
+        + "        conditions[0] = new Condition(\"permission\") {\n"
+        + "          @Override\n"
+        + "          protected boolean require() {\n"
+        + "            return target.permission(session);\n"
+        + "          }\n"
+        + "        };\n"
         + "        target.onPreClick(session);\n"
         + "        boolean result = session.execute(true);\n"
         + "        if (result) {\n"
         + "           target.onPostClick(session);\n"
-        + "        }"
+        + "        }\n"
         + "      }\n"
         + "    });\n"
         + "  }\n"

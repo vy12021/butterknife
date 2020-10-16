@@ -495,6 +495,7 @@ final class BindingSet implements BindingInformationProvider {
             boolean retry = methodBinding.pendingRetry();
             String[] requireds = methodBinding.getRequireds();
             String key = methodBinding.getKey();
+            String[] data = methodBinding.getData();
             // Condition[] conditions = new Condition[requireds.length];
             builder.addStatement("$T[] conditions = new $T[$L]", CONDITION, CONDITION, requireds.length);
 
@@ -502,7 +503,7 @@ final class BindingSet implements BindingInformationProvider {
               @Override
               protected Object execute() {
                 if (hasReturn) {
-                  Object result = target.Method(View...);
+                  Object result = target.method(View...);
                   return result;
                 } else {
                   target.method(View...);
@@ -555,9 +556,19 @@ final class BindingSet implements BindingInformationProvider {
             executorType.addMethod(methodExecute.build());
             builder.addStatement("$T executor = $L", METHOD_EXECUTOR, executorType.build());
 
-            // final ClickSession session = new ClickSession(target, p0, conditions, executor);
-            builder.addStatement("final $T session = new $T(target, p0, $S, conditions, executor, $L)",
-                    CLICK_SESSION, CLICK_SESSION, key, retry);
+            // final ClickSession session = new ClickSession(target, p0, data, conditions, executor);
+            if (null != data) {
+              builder.add("final String[] data = new String[] {");
+              for (String value : data) {
+                builder.add("$S, ", null == value ? "" : value);
+              }
+              builder.add("}").addStatement("");
+              builder.addStatement("final $T session = new $T(target, p0, $S, data, conditions, executor, $L)",
+                      CLICK_SESSION, CLICK_SESSION, key, retry);
+            } else {
+              builder.addStatement("final $T session = new $T(target, p0, $S, null, conditions, executor, $L)",
+                      CLICK_SESSION, CLICK_SESSION, key, retry);
+            }
 
             // TODO generate conditions
             /*for (int i = 0; i < requireds.length; i++) {

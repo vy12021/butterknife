@@ -1,11 +1,14 @@
 package butterknife;
 
 import android.view.View;
+
 import androidx.annotation.IdRes;
-import butterknife.internal.ListenerClass;
-import butterknife.internal.ListenerMethod;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+
+import butterknife.internal.ListenerClass;
+import butterknife.internal.ListenerMethod;
 
 import static android.view.View.OnClickListener;
 import static java.lang.annotation.ElementType.METHOD;

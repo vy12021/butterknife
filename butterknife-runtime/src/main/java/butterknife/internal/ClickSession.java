@@ -1,10 +1,12 @@
 package butterknife.internal;
 
 import android.content.res.Resources;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import java.io.Serializable;
 import java.lang.reflect.Method;
 
 import butterknife.OnClick;
@@ -20,17 +22,25 @@ public class ClickSession {
    * The target for view binding
    * @see ViewBinder
    */
+  @Nullable
   public final Object target;
   /**
    * The view bind
    */
+  @Nullable
   public final View view;
   /**
    * @see OnClick#key()
    * @see OnItemClick#key()
    * ...
    */
+  @Nullable
   public final String key;
+  /**
+   * Annotations with String[], for example OnClick#data={String1, String2}
+   */
+  @Nullable
+  public final Serializable data;
   /**
    * @see OnClick#required()
    * @see OnItemClick#required()
@@ -49,9 +59,17 @@ public class ClickSession {
   public ClickSession(@Nullable Object target, @Nullable View view, @Nullable String key,
                       @Nullable Condition[] conditions, MethodExecutor executor,
                       boolean pendingRetry) {
+    this(target, view, key, null, conditions, executor, pendingRetry);
+  }
+
+  public ClickSession(@Nullable Object target, @Nullable View view,
+                      @Nullable String key, @Nullable Serializable data,
+                      @Nullable Condition[] conditions, MethodExecutor executor,
+                      boolean pendingRetry) {
     this.target = target;
     this.view = view;
     this.key = key;
+    this.data = data;
     this.conditions = conditions;
     this.executor = executor;
     this.pendingRetry = pendingRetry;
@@ -110,9 +128,21 @@ public class ClickSession {
                                     @Nullable Object key,
                                     @NonNull final Runnable action,
                                     String... requireds) {
+    return create(binder, key, null, action, requireds);
+  }
+
+  /**
+   * Create a click session from an action.
+   * @param action  runnable
+   * @return        ClickSession
+   */
+  public static ClickSession create(@NonNull final Object binder,
+                                    @Nullable Object key, @Nullable Serializable data,
+                                    @NonNull final Runnable action,
+                                    String... requireds) {
     Condition[] conditions = new Condition[requireds.length];
     final ClickSession clickSession = new ClickSession(binder, null,
-            null == key ? null : key.toString(), conditions,
+            null == key ? null : key.toString(), data, conditions,
             new MethodExecutor(null) {
               @Nullable
               @Override

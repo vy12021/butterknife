@@ -9,6 +9,7 @@ import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 import butterknife.*
+import butterknife.internal.ClickSession
 
 class SimpleKotlin : Activity() {
 
@@ -24,7 +25,7 @@ class SimpleKotlin : Activity() {
 
   private var adapter: SimpleAdapter? = null
 
-  @OnClick(R2.id.hello)
+  @OnClick(R2.id.hello, required = ["permission"], data = ["file"], retry = true)
   fun sayHello2() {
     Toast.makeText(this, "Hello, views!", Toast.LENGTH_SHORT).show()
     ViewCollections.run(headerViews, ALPHA_FADE)
@@ -51,6 +52,10 @@ class SimpleKotlin : Activity() {
     footer.text = "by Jake Wharton"
     adapter = SimpleAdapter(this)
     listOfThings.adapter = adapter
+  }
+
+  fun permission(session: ClickSession?): Boolean {
+    return true
   }
 
   companion object {

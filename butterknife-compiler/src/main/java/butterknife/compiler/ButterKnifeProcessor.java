@@ -1275,7 +1275,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
 
     String[] data = null;
     Method annotationData = annotationClass.getDeclaredMethod("data");
-    if (annotationKey.getReturnType() == String[].class) {
+    if (annotationData.getReturnType() == String[].class) {
       data = (String[]) annotationData.invoke(annotation);
     }
 

@@ -16,10 +16,10 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
   }
 
   private fun readSymbolCache(symbolCacheDir: File) {
-    try {
-      symbolCacheDir.resolve("index").forEachLine { processCacheLine(it) }
-    } catch(e : Exception) {
-      e.printStackTrace()
+    symbolCacheDir.resolve("index").apply {
+      if (exists()) {
+        forEachLine { processCacheLine(it) }
+      }
     }
   }
 
@@ -54,9 +54,9 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
     }
     val name = values[2]
     val cache = cacheSymbols.getOrDefault(name, 0)
-    val value = if (cacheSymbols.isEmpty()) { ++idValue } else { cache }
-    idLastValue = max(idLastValue, value)
-    if (0 == value) {
+    val idValue = if (cacheSymbols.isEmpty()) { ++idValue } else { cache }
+    idLastValue = max(idLastValue, idValue)
+    if (0 == idValue) {
       var values = changedSymbols[symbolType]
       if (null == values) {
         values = java.util.ArrayList()
@@ -64,7 +64,7 @@ internal class ResourceSymbolListReader(private val builder: FinalRClassBuilder)
       }
       values.add(name)
     } else {
-      builder.addResourceField(symbolType, name, CodeBlock.of("\$L", value))
+      builder.addResourceField(symbolType, name, CodeBlock.of("\$L", idValue))
     }
   }
 }
