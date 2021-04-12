@@ -11,11 +11,14 @@ dependencies {
   implementation deps.auto.common
   implementation deps.guava
   api deps.javapoet
+
   compileOnly deps.auto.service
+  annotationProcessor deps.auto.service
+
   compileOnly files(Jvm.current().getToolsJar())
 
-  api deps.incap.runtime
-  compileOnly deps.incap.processor
+  implementation deps.incap.runtime
+  annotationProcessor deps.incap.processor
 
   testImplementation deps.junit
   testImplementation deps.truth

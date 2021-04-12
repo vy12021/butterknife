@@ -44,6 +44,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
+import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -141,6 +142,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
   private Types typeUtils;
   private Filer filer;
   private @Nullable Trees trees;
+  private Messager logger;
 
   private int sdk = 1;
   private boolean debuggable = true;
@@ -167,6 +169,7 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
 
     typeUtils = env.getTypeUtils();
     filer = env.getFiler();
+    logger = env.getMessager();
     try {
       trees = Trees.instance(processingEnv);
     } catch (IllegalArgumentException ignored) {
@@ -204,7 +207,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
 
   private Set<Class<? extends Annotation>> getSupportedAnnotations() {
     Set<Class<? extends Annotation>> annotations = new LinkedHashSet<>();
-
     annotations.add(Scannable.class);
     annotations.add(BindAnim.class);
     annotations.add(BindArray.class);
@@ -221,15 +223,12 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
     annotations.add(BindViews.class);
     annotations.add(Bind.class);
     annotations.addAll(LISTENERS);
-
     return annotations;
   }
 
   @Override public boolean process(Set<? extends TypeElement> elements, RoundEnvironment env) {
     scanR2Symbols(env);
-
     Map<TypeElement, BindingSet> bindingMap = findAndParseTargets(env);
-
     for (Map.Entry<TypeElement, BindingSet> entry : bindingMap.entrySet()) {
       TypeElement typeElement = entry.getKey();
       BindingSet binding = entry.getValue();
@@ -240,7 +239,6 @@ public final class ButterKnifeProcessor extends AbstractProcessor {
         error(typeElement, "Unable to write binding for type %s: %s", typeElement, e.getMessage());
       }
     }
-
     return false;
   }
 

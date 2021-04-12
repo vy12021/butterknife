@@ -2,8 +2,6 @@ package butterknife.plugin
 
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.AppPlugin
-import com.android.build.gradle.FeatureExtension
-import com.android.build.gradle.FeaturePlugin
 import com.android.build.gradle.LibraryExtension
 import com.android.build.gradle.LibraryPlugin
 import com.android.build.gradle.api.BaseVariant
@@ -21,12 +19,6 @@ class ButterKnifePlugin : Plugin<Project> {
   override fun apply(project: Project) {
     project.plugins.all {
       when (it) {
-        is FeaturePlugin -> {
-          project.extensions[FeatureExtension::class].run {
-            configureR2Generation(project, featureVariants)
-            configureR2Generation(project, libraryVariants)
-          }
-        }
         is LibraryPlugin -> {
           project.extensions[LibraryExtension::class].run {
             configureR2Generation(project, libraryVariants)
@@ -69,8 +61,8 @@ class ButterKnifePlugin : Plugin<Project> {
           // TODO: switch to better API once exists in AGP (https://issuetracker.google.com/118668005)
           val rFile = project.files(
                   when (processResources) {
-                    is GenerateLibraryRFileTask -> processResources.textSymbolOutputFile
-                    is LinkApplicationAndroidResourcesTask -> processResources.textSymbolOutputFile
+                    is GenerateLibraryRFileTask -> processResources.getTextSymbolOutputFile()
+                    is LinkApplicationAndroidResourcesTask -> processResources.getTextSymbolOutputFile()
                     else -> throw RuntimeException(
                         "Minimum supported Android Gradle Plugin is 3.3.0")
                   })

@@ -128,7 +128,7 @@ public class ClickSession {
                                     @Nullable Object key,
                                     @NonNull final Runnable action,
                                     String... requireds) {
-    return create(binder, key, null, action, requireds);
+    return create(binder, key, null, action, true, requireds);
   }
 
   /**
@@ -140,6 +140,18 @@ public class ClickSession {
                                     @Nullable Object key, @Nullable Serializable data,
                                     @NonNull final Runnable action,
                                     String... requireds) {
+    return create(binder, key, data, action, true, requireds);
+  }
+
+  /**
+   * Create a click session from an action.
+   * @param action  runnable
+   * @return        ClickSession
+   */
+  public static ClickSession create(@NonNull final Object binder,
+                                    @Nullable Object key, @Nullable Serializable data,
+                                    @NonNull final Runnable action, boolean pendingRetry,
+                                    String... requireds) {
     Condition[] conditions = new Condition[requireds.length];
     final ClickSession clickSession = new ClickSession(binder, null,
             null == key ? null : key.toString(), data, conditions,
@@ -150,7 +162,7 @@ public class ClickSession {
                 action.run();
                 return null;
               }
-            }, true);
+            }, pendingRetry);
     for (int i = 0; i < requireds.length; i++) {
       conditions[i] = new Condition(requireds[i]) {
         @Override
